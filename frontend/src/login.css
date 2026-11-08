@@ -1,0 +1,264 @@
+
+* {
+  box-sizing: border-box;
+}
+
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  background: #f4f6fb;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+/* Left branding section */
+
+.login-brand {
+  width: 48%;
+  min-height: 100vh;
+  padding: 55px 65px;
+  background: linear-gradient(145deg, #101d38, #172e55, #102747);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.login-brand::after {
+  content: '';
+  position: absolute;
+  width: 450px;
+  height: 450px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 50%;
+  right: -180px;
+  bottom: -150px;
+}
+
+.brand-logo {
+  width: 45px;
+  height: 45px;
+  border-radius: 12px;
+  background: #3678ef;
+  display: grid;
+  place-items: center;
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.login-brand h1 {
+  font-size: 25px;
+  margin: 15px 0 4px;
+  letter-spacing: 1px;
+}
+
+.brand-tagline {
+  color: #a8b9d6;
+  font-size: 13px;
+}
+
+.brand-content {
+  margin-top: auto;
+  margin-bottom: auto;
+  max-width: 470px;
+}
+
+.brand-content h2 {
+  font-size: clamp(32px, 4vw, 48px);
+  line-height: 1.2;
+  margin-bottom: 20px;
+}
+
+.brand-content p {
+  color: #b9c7dc;
+  font-size: 15px;
+  line-height: 1.9;
+}
+
+.brand-footer {
+  color: #8da3c4;
+  font-size: 11px;
+  letter-spacing: 2px;
+}
+
+/* Right login section */
+
+.login-section {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 35px;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 440px;
+  background: #ffffff;
+  padding: 45px 40px;
+  border-radius: 14px;
+  box-shadow: 0 15px 50px rgba(20, 40, 80, 0.08);
+}
+
+.mobile-logo {
+  display: none;
+}
+
+.welcome-text {
+  color: #3678ef;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+.login-heading h2 {
+  color: #17243c;
+  font-size: 27px;
+  margin: 12px 0;
+}
+
+.login-heading p {
+  color: #7b8799;
+  font-size: 14px;
+  margin-bottom: 32px;
+}
+
+.login-card form label {
+  display: block;
+  color: #26344c;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.login-card form > input,
+.password-input input {
+  width: 100%;
+  height: 49px;
+  border: 1px solid #dce2eb;
+  border-radius: 7px;
+  padding: 0 14px;
+  font-size: 14px;
+  outline: none;
+  margin-bottom: 24px;
+}
+
+.login-card input:focus {
+  border-color: #3678ef;
+  box-shadow: 0 0 0 3px rgba(54,120,239,0.10);
+}
+
+.password-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.forgot-password {
+  border: none;
+  background: none;
+  color: #3678ef;
+  font-size: 12px;
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+
+.password-input {
+  position: relative;
+}
+
+.password-input input {
+  padding-right: 65px;
+}
+
+.show-password {
+  position: absolute;
+  right: 12px;
+  top: 14px;
+  border: none;
+  background: none;
+  color: #3678ef;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.login-card .remember-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #647086;
+  font-size: 13px;
+  margin-bottom: 25px;
+  cursor: pointer;
+}
+
+.remember-option input {
+  accent-color: #3678ef;
+  width: 15px;
+  height: 15px;
+}
+
+.login-button {
+  width: 100%;
+  height: 49px;
+  border: none;
+  border-radius: 7px;
+  background: #2868d8;
+  color: white;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.login-button:hover {
+  background: #1d52b4;
+}
+
+.login-security {
+  text-align: center;
+  color: #8994a6;
+  font-size: 12px;
+  margin-top: 28px;
+}
+
+.login-bottom {
+  text-align: center;
+  color: #a0a9b8;
+  font-size: 11px;
+  margin-top: 35px;
+}
+
+/* Responsive design */
+
+@media (max-width: 850px) {
+  .login-brand {
+    display: none;
+  }
+
+  .login-section {
+    width: 100%;
+    padding: 20px;
+  }
+
+  .mobile-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 35px;
+  }
+
+  .mobile-logo h2 {
+    color: #17243c;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-card {
+    padding: 30px 22px;
+  }
+
+  .login-heading h2 {
+    font-size: 23px;
+  }
+}
