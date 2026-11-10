@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg[binary]
+alembic
+pydantic
+pwdlib[argon2]
+pyjwt
+python-dotenv
+python-multipart
+redis
+celery[redis]
+openpyxl
+reportlab

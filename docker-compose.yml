@@ -1,0 +1,81 @@
+services:
+  # ---- Local development: `docker compose up -d` starts only these two ----
+  db:
+    image: postgres:16
+    container_name: fleetflow-db
+    environment:
+      POSTGRES_USER: fleetflow
+      POSTGRES_PASSWORD: fleetflow
+      POSTGRES_DB: fleetflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fleetflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    container_name: fleetflow-redis
+    ports:
+      - "6379:6379"
+
+  # ---- Full stack in containers: `docker compose --profile app up --build` ----
+  # Needs SECRET_KEY in the environment (or a root .env file), e.g.
+  #   $env:SECRET_KEY = python -c "import secrets; print(secrets.token_urlsafe(48))"
+  api:
+    profiles: ["app"]
+    build: ./backend
+    environment: &api-env
+      DATABASE_URL: postgresql+psycopg://fleetflow:fleetflow@db:5432/fleetflow
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY before starting the app profile}
+      ALLOWED_ORIGINS: http://localhost:8080
+      TOMTOM_API_KEY: ${TOMTOM_API_KEY:-}
+      REPORT_DIR: /app/reports
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - uploads:/app/uploads
+      - reports:/app/reports
+
+  worker:
+    profiles: ["app"]
+    build: ./backend
+    command: celery -A celery_app worker --loglevel=info
+    environment: *api-env
+    depends_on:
+      - api
+      - redis
+    volumes:
+      - reports:/app/reports
+
+  beat:
+    profiles: ["app"]
+    build: ./backend
+    command: celery -A celery_app beat --loglevel=info
+    environment: *api-env
+    depends_on:
+      - redis
+
+  web:
+    profiles: ["app"]
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:8000
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  uploads:
+  reports:
