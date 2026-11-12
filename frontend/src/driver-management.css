@@ -1,0 +1,207 @@
+.driver-management {
+  --dm-app: #05091b;
+  --dm-shell: #081426;
+  --dm-card: #101a30;
+  --dm-card-secondary: #15223a;
+  --dm-border: #25334d;
+  --dm-text: #f8fafc;
+  --dm-secondary: #94a3b8;
+  --dm-muted: #64748b;
+  --dm-accent: #2563eb;
+  --dm-success: #22c58b;
+  --dm-warning: #f59e0b;
+  --dm-danger: #ef4444;
+  color-scheme: dark;
+  color: var(--dm-text) !important;
+  background: var(--dm-app) !important;
+}
+
+.driver-management.bg-white,
+.driver-management.bg-slate-100 {
+  color: var(--dm-text) !important;
+  background: var(--dm-app) !important;
+}
+
+.driver-management .bg-white,
+.driver-management .bg-slate-100 {
+  color: var(--dm-text);
+  background-color: var(--dm-card) !important;
+  border: 1px solid var(--dm-border);
+  border-color: var(--dm-border);
+}
+
+.driver-management .bg-slate-50,
+.driver-management .bg-blue-50,
+.driver-management .bg-blue-100 {
+  background-color: var(--dm-card-secondary) !important;
+}
+
+.driver-management .bg-slate-900 {
+  background-color: var(--dm-card) !important;
+}
+
+.driver-management .bg-slate-950 {
+  background-color: var(--dm-shell) !important;
+}
+
+.driver-management .text-slate-900,
+.driver-management .text-slate-800,
+.driver-management .text-slate-700,
+.driver-management h1,
+.driver-management h2,
+.driver-management h3,
+.driver-management strong {
+  color: var(--dm-text);
+}
+
+.driver-management .text-slate-600,
+.driver-management .text-slate-500,
+.driver-management .text-slate-400 {
+  color: var(--dm-secondary) !important;
+}
+
+.driver-management .text-slate-300,
+.driver-management .text-slate-200,
+.driver-management .text-slate-100 {
+  color: var(--dm-text) !important;
+}
+
+.driver-management .text-blue-700,
+.driver-management a:not([href^='mailto:']) {
+  color: #60a5fa;
+}
+
+.driver-management .border-slate-100,
+.driver-management .border-slate-200,
+.driver-management .border-slate-300,
+.driver-management .border-rose-200,
+.driver-management .border-emerald-200,
+.driver-management .border-t,
+.driver-management .border-b,
+.driver-management .border {
+  border-color: var(--dm-border) !important;
+}
+
+.driver-management .divide-y > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--dm-border) !important;
+}
+
+.driver-management input,
+.driver-management select,
+.driver-management textarea {
+  color: var(--dm-text) !important;
+  background-color: var(--dm-shell) !important;
+  border-color: var(--dm-border) !important;
+}
+
+.driver-management input::placeholder,
+.driver-management textarea::placeholder {
+  color: var(--dm-muted) !important;
+}
+
+.driver-management input:focus,
+.driver-management select:focus,
+.driver-management textarea:focus,
+.driver-management button:focus-visible,
+.driver-management a:focus-visible {
+  outline: 2px solid var(--dm-accent);
+  outline-offset: 2px;
+}
+
+.driver-management option {
+  color: var(--dm-text);
+  background: var(--dm-shell);
+}
+
+.driver-management .bg-blue-600 {
+  color: var(--dm-text);
+  background-color: var(--dm-accent) !important;
+}
+
+.driver-management .bg-blue-600:hover {
+  background-color: #1d4ed8 !important;
+}
+
+.driver-management [role='alert'] {
+  color: #fecaca !important;
+  background: #351b2b !important;
+  border-color: #7f1d35 !important;
+}
+
+.driver-management[role='alert'] {
+  color: #fecaca !important;
+  background: #351b2b !important;
+  border-color: #7f1d35 !important;
+}
+
+.driver-management [role='status'] {
+  color: #a7f3d0 !important;
+  background: #0d302f !important;
+  border-color: #145b4d !important;
+}
+
+.driver-management select:disabled {
+  color: var(--dm-muted) !important;
+  background: var(--dm-card-secondary) !important;
+  opacity: 0.8;
+}
+
+.driver-management thead {
+  color: var(--dm-secondary) !important;
+  background: var(--dm-card-secondary) !important;
+}
+
+.driver-management tbody td {
+  color: var(--dm-text);
+}
+
+.driver-management tbody tr:hover {
+  background-color: #172b4b !important;
+}
+
+.driver-management .leaflet-container {
+  color: var(--dm-text);
+  background: var(--dm-shell);
+}
+
+.driver-management .leaflet-popup-content-wrapper,
+.driver-management .leaflet-popup-tip {
+  color: var(--dm-text);
+  background: var(--dm-card);
+  box-shadow: 0 2px 12px rgb(0 0 0 / 35%);
+}
+
+.driver-management .leaflet-popup-close-button,
+.driver-management .leaflet-tooltip {
+  color: var(--dm-text) !important;
+  background: var(--dm-card);
+}
+
+.driver-management .leaflet-popup-content a {
+  color: #60a5fa;
+}
+
+.driver-management .leaflet-bar,
+.driver-management .leaflet-bar a,
+.driver-management .leaflet-control-layers,
+.driver-management .leaflet-control-attribution {
+  color: var(--dm-text);
+  background: var(--dm-shell);
+  border-color: var(--dm-border);
+}
+
+.driver-management .leaflet-bar a:hover {
+  color: white;
+  background: var(--dm-card-secondary);
+}
+
+.driver-management .leaflet-control-attribution a {
+  color: #93c5fd;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .driver-management button,
+  .driver-management a {
+    transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+  }
+}

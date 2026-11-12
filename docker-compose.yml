@@ -1,0 +1,68 @@
+
+services:
+  postgres:
+    image: postgres:18
+    container_name: fleetflow-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fleetflow
+      POSTGRES_USER: fleetflow
+      POSTGRES_PASSWORD: ${DOCKER_POSTGRES_PASSWORD:?Set DOCKER_POSTGRES_PASSWORD in the root .env file}
+    ports:
+      - "5433:5432"
+    volumes:
+      - fleetflow_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fleetflow -d fleetflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: fleetflow-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - fleetflow_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  celery-worker:
+    profiles: ["background"]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: ["celery", "-A", "app.celery_app:celery_app", "worker", "--loglevel=INFO"]
+    environment:
+      DATABASE_URL: ${FLEETFLOW_BACKGROUND_DATABASE_URL:?Set a database URL reachable from Docker}
+      SECRET_KEY: ${FLEETFLOW_BACKGROUND_SECRET_KEY:?Set the same signing key used by the API}
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  celery-beat:
+    profiles: ["background"]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: ["celery", "-A", "app.celery_app:celery_app", "beat", "--loglevel=INFO"]
+    environment:
+      DATABASE_URL: ${FLEETFLOW_BACKGROUND_DATABASE_URL:?Set a database URL reachable from Docker}
+      SECRET_KEY: ${FLEETFLOW_BACKGROUND_SECRET_KEY:?Set the same signing key used by the API}
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  fleetflow_postgres_data:
+  fleetflow_redis_data:
