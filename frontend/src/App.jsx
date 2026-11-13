@@ -30,6 +30,11 @@ const MENU_ICONS = {
   "Users & Roles": "users", "Driver Profile": "drivers",
 };
 
+// The words shown in the sidebar and page header. The page names above stay as they are, because
+// the rest of the app uses them to switch pages.
+const LABEL = { Notifications: "Alerts", "Fleet Performance": "Analytics" };
+const label = (page) => LABEL[page] || page;
+
 const ROLE_LABEL = {
   admin: "Administrator", fleet_manager: "Fleet Manager",
   dispatcher: "Dispatcher", driver: "Driver",
@@ -91,12 +96,12 @@ function App() {
   // Dispatchers can additionally plan and run trips.
   const canDispatch = ["admin", "fleet_manager", "dispatcher"].includes(user.role);
   const menu = ["Dashboard", "Live Tracking", "Vehicles", "Drivers", "Trips", "Shipments"];
+  if (canEdit) menu.push("Maintenance"); // shows repair costs: admin and fleet manager only
   if (canDispatch) menu.push("Driver Assignment");
   menu.push("Notifications");
-  if (canEdit) menu.push("Fleet Performance");
   if (canEdit) menu.push("Reports");
+  if (canEdit) menu.push("Fleet Performance");
   if (canEdit) menu.push("Fuel Management");
-  if (canEdit) menu.push("Maintenance"); // shows repair costs: admin and fleet manager only
   if (user.role === "admin") menu.push("Users & Roles");
   if (user.role === "driver") menu.splice(1, 0, "Driver Profile"); // a driver's own profile
 
@@ -112,7 +117,7 @@ function App() {
           <button key={item} className={`menu-item ${page === item || (item === "Drivers" && page === "Driver Profile") ? "active" : ""}`}
             onClick={() => go(item)}>
             <Icon name={MENU_ICONS[item]} />
-            {item}
+            {label(item)}
           </button>
         ))}
 
@@ -143,7 +148,7 @@ function App() {
 
       <main className="main-content">
         <header className="topbar">
-          <div><h1>{page}</h1><p>FleetFlow / {page}</p></div>
+          <div><h1>{label(page)}</h1><p>FleetFlow / {label(page)}</p></div>
           <span className="online">
             {user.username} · {ROLE_LABEL[user.role]}
           </span>

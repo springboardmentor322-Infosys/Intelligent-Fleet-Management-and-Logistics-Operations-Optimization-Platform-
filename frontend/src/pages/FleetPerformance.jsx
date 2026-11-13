@@ -1,4 +1,7 @@
 import { useEffect, useState } from "react";
+import {
+  Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
+} from "recharts";
 import { api } from "../api";
 
 const TRIP_STATUSES = ["Planned", "In Progress", "Completed", "Cancelled"];
@@ -11,22 +14,73 @@ function query(f) {
   return p.toString();
 }
 
-function Bars({ data, unit = "" }) {
-  const entries = Object.entries(data || {});
-  const max = Math.max(1, ...entries.map(([, v]) => v));
-  if (!entries.length) return <p>No data for these filters.</p>;
+const AXIS = "#9fb0cc";   // light enough to read on the dark panels
+const COLORS = { blue: "#2563eb", green: "#16a34a", amber: "#f59e0b", red: "#dc2626", grey: "#94a3b8" };
+
+// One bar per label. `colors` can colour each bar so a status always has the same colour.
+function BarsChart({ data, colors, unit = "" }) {
+  const rows = Object.entries(data || {}).map(([name, value]) => ({ name, value }));
+  if (!rows.length || rows.every((r) => !r.value)) return <p>No data for these filters.</p>;
   return (
-    <div className="bars">
-      {entries.map(([k, v]) => (
-        <div className="bar-row" key={k}>
-          <span>{k}</span>
-          <div className="bar-track"><div className="bar-fill" style={{ width: `${(v / max) * 100}%` }} /></div>
-          <b>{num(v)}{unit}</b>
-        </div>
-      ))}
-    </div>
+    <ResponsiveContainer width="100%" height={260}>
+      <BarChart data={rows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+        <XAxis dataKey="name" tick={{ fontSize: 12, fill: AXIS }} interval={0} />
+        <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: AXIS }} />
+        <Tooltip formatter={(v) => `${num(v)}${unit}`} />
+        <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+          {rows.map((r) => <Cell key={r.name} fill={(colors && colors[r.name]) || COLORS.blue} />)}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
   );
 }
+
+// Share of the fleet: the label shows the count and the percentage of all vehicles.
+function ShareChart({ data, colors }) {
+  const rows = Object.entries(data).map(([name, value]) => ({ name, value }));
+  const total = rows.reduce((sum, r) => sum + r.value, 0);
+  if (!total) return <p>No vehicles registered yet.</p>;
+  return (
+    <ResponsiveContainer width="100%" height={260}>
+      <PieChart>
+        <Pie data={rows} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={2}
+          label={({ name, value }) => `${name}: ${value} (${Math.round((100 * value) / total)}%)`}>
+          {rows.map((r) => <Cell key={r.name} fill={colors[r.name]} />)}
+        </Pie>
+        <Tooltip formatter={(v, n) => [`${v} (${Math.round((100 * v) / total)}%)`, n]} />
+      </PieChart>
+    </ResponsiveContainer>
+  );
+}
+
+// Driver comparison: completed trips, successful deliveries and delayed deliveries side by side.
+function DriverChart({ drivers }) {
+  const rows = drivers.map((r) => ({
+    name: r.driver, "Completed trips": r.completed_trips,
+    "Successful deliveries": r.deliveries - r.delayed_deliveries, "Delayed deliveries": r.delayed_deliveries,
+  }));
+  if (!rows.length) return <p>No trips for these filters.</p>;
+  return (
+    <ResponsiveContainer width="100%" height={300}>
+      <BarChart data={rows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+        <XAxis dataKey="name" tick={{ fontSize: 12, fill: AXIS }} />
+        <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: AXIS }} />
+        <Tooltip />
+        <Legend wrapperStyle={{ color: AXIS }} />
+        <Bar dataKey="Completed trips" fill={COLORS.blue} radius={[4, 4, 0, 0]} />
+        <Bar dataKey="Successful deliveries" fill={COLORS.green} radius={[4, 4, 0, 0]} />
+        <Bar dataKey="Delayed deliveries" fill={COLORS.red} radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+const TRIP_COLORS = { Completed: COLORS.green, Ongoing: COLORS.blue, Planned: COLORS.grey, Delayed: COLORS.amber, Cancelled: COLORS.red };
+const UTIL_COLORS = { "In use": COLORS.blue, Available: COLORS.green, "In maintenance": COLORS.amber };
+const DELIVERY_COLORS = { Delivered: COLORS.green, "Delivered late": COLORS.amber, "In transit": COLORS.blue, Cancelled: COLORS.red };
+const MAINT_COLORS = { Completed: COLORS.green, Pending: COLORS.amber, Cancelled: COLORS.grey };
 
 export default function FleetPerformance({ setError }) {
   const [d, setD] = useState(null);
@@ -97,11 +151,11 @@ export default function FleetPerformance({ setError }) {
       <section className="two-col">
         <div className="panel">
           <h3>Trip performance</h3>
-          <Bars data={{ Completed: t.completed, Ongoing: t.ongoing, Planned: t.planned, Delayed: t.delayed, Cancelled: t.cancelled }} />
+          <BarsChart colors={TRIP_COLORS} data={{ Completed: t.completed, Ongoing: t.ongoing, Planned: t.planned, Delayed: t.delayed, Cancelled: t.cancelled }} />
         </div>
         <div className="panel">
           <h3>Vehicle utilisation: {u.utilisation_pct == null ? "n/a" : `${u.utilisation_pct}%`}</h3>
-          <Bars data={{ "In use": u.used, Available: u.available, "In maintenance": u.in_maintenance }} />
+          <ShareChart colors={UTIL_COLORS} data={{ "In use": u.used, Available: u.available, "In maintenance": u.in_maintenance }} />
           <small>In use as a share of vehicles that are not in maintenance.</small>
         </div>
       </section>
@@ -109,23 +163,24 @@ export default function FleetPerformance({ setError }) {
       <section className="two-col">
         <div className="panel">
           <h3>Delivery performance: {dl.on_time_pct == null ? "no deliveries yet" : `${dl.on_time_pct}% on time`}</h3>
-          <Bars data={{ Delivered: dl.delivered, "Delivered late": dl.delayed, "In transit": dl.in_transit, Cancelled: dl.cancelled }} />
+          <BarsChart colors={DELIVERY_COLORS} data={{ Delivered: dl.delivered, "Delivered late": dl.delayed, "In transit": dl.in_transit, Cancelled: dl.cancelled }} />
         </div>
         <div className="panel">
           <h3>Maintenance</h3>
-          <Bars data={{ Completed: m.completed, Pending: m.pending, Cancelled: m.cancelled }} />
+          <BarsChart colors={MAINT_COLORS} data={{ Completed: m.completed, Pending: m.pending, Cancelled: m.cancelled }} />
           <small>Spent on completed work: {num(m.spent)}</small>
         </div>
       </section>
 
       <section className="panel">
         <h3>Distance travelled: {num(d.total_distance_km)} km</h3>
-        <Bars data={d.distance_by_vehicle} unit=" km" />
+        <BarsChart data={d.distance_by_vehicle} unit=" km" />
         <small>From completed trips that recorded a distance.</small>
       </section>
 
       <section className="panel">
         <h3>Driver performance</h3>
+        <DriverChart drivers={d.drivers} />
         {d.drivers.length === 0 ? <p>No trips for these filters.</p> : (
           <div className="table-wrap"><table>
             <thead><tr><th>Driver</th><th>Completed trips</th><th>Deliveries</th><th>Delayed</th><th>On time</th><th>Distance (km)</th></tr></thead>

@@ -15,6 +15,7 @@
   "dependencies": {
     "leaflet": "^1.9.4",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "recharts": "^3.2.1"
   }
 }

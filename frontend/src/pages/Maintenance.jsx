@@ -1,12 +1,43 @@
 import { Fragment, useEffect, useState } from "react";
 import { api, download } from "../api";
+import Icon from "../Icons.jsx";
 
 const CATEGORIES = [
   "Engine Servicing", "Oil Change", "Tyre Replacement",
   "Brake Inspection", "General Servicing", "Unexpected Repairs",
 ];
 const STATUSES = ["Scheduled", "In Progress", "Completed", "Cancelled"];
-const TABS = ["Records", "Vehicles", "Alerts", "Reports"];
+const TABS = ["Maintenance Records", "Vehicle List", "Maintenance History", "Alerts", "Reports"];
+const PAGE_SIZE = 5;
+const CATEGORY_ICONS = {
+  "Engine Servicing": "\u2699\uFE0F", "Oil Change": "\uD83D\uDEE2\uFE0F", "Tyre Replacement": "\uD83D\uDEDE",
+  "Brake Inspection": "\uD83D\uDED1", "General Servicing": "\uD83D\uDD27", "Unexpected Repairs": "\u26A0\uFE0F",
+};
+const PILL = { Scheduled: "pill-blue", "In Progress": "pill-amber", Completed: "pill-green", Cancelled: "pill-grey" };
+
+// Category dropdown with an icon in front of each option (a native <select> cannot show icons).
+function CategorySelect({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="cat-select">
+      <button type="button" className="cat-current" onClick={() => setOpen(!open)} aria-expanded={open}>
+        <span>{CATEGORY_ICONS[value]} {value}</span><span aria-hidden="true">{open ? "\u25B4" : "\u25BE"}</span>
+      </button>
+      {open && (
+        <ul className="cat-list">
+          {CATEGORIES.map((c) => (
+            <li key={c}>
+              <button type="button" className={c === value ? "on" : ""}
+                onClick={() => { onChange(c); setOpen(false); }}>
+                {CATEGORY_ICONS[c]} {c}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 const blank = {
   vehicle_id: "", category: CATEGORIES[0], description: "",
   scheduled_date: "", service_centre: "", estimated_cost: "",
@@ -20,8 +51,25 @@ function query(filters) {
   return p.toString();
 }
 
+function Pager({ total, page, setPage }) {
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const from = total ? (page - 1) * PAGE_SIZE + 1 : 0, to = Math.min(total, page * PAGE_SIZE);
+  return (
+    <div className="pager">
+      <small>Showing {from} &ndash; {to} of {total} records</small>
+      <div className="pager-buttons">
+        <button type="button" disabled={page <= 1} onClick={() => setPage(page - 1)} aria-label="Previous page">&lsaquo;</button>
+        {Array.from({ length: pages }, (_, i) => i + 1).map((n) => (
+          <button type="button" key={n} className={n === page ? "on" : ""} onClick={() => setPage(n)}>{n}</button>
+        ))}
+        <button type="button" disabled={page >= pages} onClick={() => setPage(page + 1)} aria-label="Next page">&rsaquo;</button>
+      </div>
+    </div>
+  );
+}
+
 export default function Maintenance({ setError }) {
-  const [tab, setTab] = useState("Records");
+  const [tab, setTab] = useState("Maintenance Records");
   const [stats, setStats] = useState(null);
   const [records, setRecords] = useState([]);
   const [vehicles, setVehicles] = useState([]);
@@ -35,12 +83,15 @@ export default function Maintenance({ setError }) {
   const [finishing, setFinishing] = useState(null); // record being completed
   const [finish, setFinish] = useState({ actual_cost: "", parts_replaced: "", confirm_operational: true });
   const [history, setHistory] = useState({ vehicle: null, rows: [] });
+  const [page, setPage] = useState(1);
 
   async function loadAll(f = filters) {
     try {
       setStats(await api("/maintenance/stats"));
       setVehicles(await api("/vehicles"));
-      if (tab === "Records") setRecords(await api(`/maintenance?${query(f)}`));
+      setPage(1);
+      if (tab === "Maintenance Records") setRecords(await api(`/maintenance?${query(f)}`));
+      if (tab === "Maintenance History") setRecords(await api(`/maintenance?${query({ ...f, status: "Completed" })}`));
       if (tab === "Alerts") setAlerts(await api("/maintenance/alerts"));
       if (tab === "Reports") setReport(await api(`/maintenance/report?${query(f)}`));
     } catch (e) {
@@ -172,10 +223,10 @@ export default function Maintenance({ setError }) {
   );
 
   const cards = stats && [
-    ["Total vehicles", stats.total_vehicles],
-    ["Under maintenance", stats.under_maintenance],
-    ["Upcoming maintenance", stats.upcoming],
-    ["Overdue maintenance", stats.overdue],
+    ["Total Vehicles", stats.total_vehicles, "blue", "vehicles"],
+    ["Under Maintenance", stats.under_maintenance, "green", "maintenance"],
+    ["Upcoming Maintenance", stats.upcoming, "amber", "trips"],
+    ["Overdue Maintenance", stats.overdue, "red", "alerts"],
   ];
 
   return (
@@ -186,15 +237,18 @@ export default function Maintenance({ setError }) {
           <p>Schedule servicing, track progress and keep each vehicle's service history.</p>
         </div>
         <button className="primary-button"
-          onClick={() => { setForm(blank); setEditing(null); setShow(true); setTab("Records"); }}>
+          onClick={() => { setForm(blank); setEditing(null); setShow(true); setTab("Maintenance Records"); }}>
           + Schedule maintenance
         </button>
       </section>
 
       {cards && (
-        <section className="stats-grid">
-          {cards.map(([t, v]) => (
-            <article className="stat-card" key={t}><p>{t}</p><h2>{v}</h2></article>
+        <section className="stats-grid stats-4">
+          {cards.map(([t, v, tone, icon]) => (
+            <article className={`stat-card tone-${tone}`} key={t}>
+              <span className="card-icon"><Icon name={icon} size={26} /></span>
+              <p>{t}</p><h2>{v}</h2>
+            </article>
           ))}
         </section>
       )}
@@ -202,38 +256,49 @@ export default function Maintenance({ setError }) {
       {note && <div className="note-message">{note}</div>}
 
       {show && (
-        <form className="panel form-grid" onSubmit={save}>
-          <h3>{editing ? "Edit maintenance" : "Schedule maintenance"}</h3>
-          <label>Vehicle
-            <select required value={form.vehicle_id} onChange={set("vehicle_id")}>
-              <option value="">Select vehicle...</option>
-              {vehicles.map((v) => (
-                <option key={v.id} value={v.id}>{v.registration_number} · {v.vehicle_type}</option>
-              ))}
-            </select>
-          </label>
-          <label>Category
-            <select value={form.category} onChange={set("category")}>
-              {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-            </select>
-          </label>
-          <label>Scheduled date
-            <input required type="date" value={form.scheduled_date} onChange={set("scheduled_date")} />
-          </label>
-          <label>Service centre
-            <input maxLength={120} value={form.service_centre} onChange={set("service_centre")} />
-          </label>
-          <label>Estimated cost
-            <input type="number" min="0" step="any" value={form.estimated_cost} onChange={set("estimated_cost")} />
-          </label>
-          <label>Description
-            <input maxLength={300} value={form.description} onChange={set("description")} />
-          </label>
-          <div>
-            <button className="primary-button" type="submit">{editing ? "Update" : "Schedule"}</button>{" "}
-            <button className="secondary-button" type="button" onClick={closeForm}>Cancel</button>
-          </div>
-        </form>
+        <div className="slide-backdrop" onClick={closeForm}>
+          <aside className="slide-panel" role="dialog" aria-label={editing ? "Edit maintenance" : "Schedule maintenance"}
+            onClick={(e) => e.stopPropagation()}>
+            <header className="slide-head">
+              <h3><Icon name="maintenance" size={22} /> {editing ? "Edit Maintenance" : "Schedule Maintenance"}</h3>
+              <button type="button" className="slide-close" aria-label="Close" onClick={closeForm}>&times;</button>
+            </header>
+            <form className="slide-form" onSubmit={save}>
+              <label><span>Vehicle <span className="req">*</span></span>
+                <select required value={form.vehicle_id} onChange={set("vehicle_id")}>
+                  <option value="">Select Vehicle</option>
+                  {vehicles.map((v) => (
+                    <option key={v.id} value={v.id}>{v.registration_number} · {v.vehicle_type}</option>
+                  ))}
+                </select>
+              </label>
+              <div className="field"><span>Maintenance Category <span className="req">*</span></span>
+                <CategorySelect value={form.category} onChange={(c) => setForm({ ...form, category: c })} />
+              </div>
+              <label><span>Maintenance Description <span className="req">*</span></span>
+                <textarea required rows={3} maxLength={300} placeholder="Enter maintenance details..."
+                  value={form.description} onChange={set("description")} />
+              </label>
+              <div className="slide-row">
+                <label><span>Scheduled Date <span className="req">*</span></span>
+                  <input required type="date" value={form.scheduled_date} onChange={set("scheduled_date")} />
+                </label>
+                <label><span>Service Centre <span className="req">*</span></span>
+                  <input required maxLength={120} placeholder="Service centre" value={form.service_centre}
+                    onChange={set("service_centre")} />
+                </label>
+              </div>
+              <label><span>Estimated Cost (&#8377;) <span className="req">*</span></span>
+                <input required type="number" min="0" step="any" placeholder="Enter estimated cost"
+                  value={form.estimated_cost} onChange={set("estimated_cost")} />
+              </label>
+              <div className="slide-actions">
+                <button className="secondary-button" type="button" onClick={closeForm}>Cancel</button>
+                <button className="primary-button" type="submit">{editing ? "Update" : "Schedule"}</button>
+              </div>
+            </form>
+          </aside>
+        </div>
       )}
 
       <div className="tabs">
@@ -243,20 +308,21 @@ export default function Maintenance({ setError }) {
         ))}
       </div>
 
-      {tab === "Records" && (
+      {tab === "Maintenance Records" && (
         <section className="panel">
           {filterBar}
           {records.length === 0 ? <p>No maintenance records found.</p> : (
             <div className="table-wrap">
               <table>
                 <thead>
-                  <tr><th>Vehicle</th><th>Type</th><th>Scheduled</th><th>Est. cost</th>
+                  <tr><th>#</th><th>Vehicle No.</th><th>Maintenance Type</th><th>Scheduled Date</th><th>Estimated Cost</th>
                     <th>Status</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
-                  {records.map((m) => (
+                  {records.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((m, i) => (
                     <Fragment key={m.id}>
                       <tr>
+                        <td>{(page - 1) * PAGE_SIZE + i + 1}</td>
                         <td><b>{m.registration_number}</b><br /><small>{m.vehicle_type}</small></td>
                         <td>{m.category}<br /><small>{m.service_centre}</small></td>
                         <td>{m.scheduled_date}
@@ -264,7 +330,7 @@ export default function Maintenance({ setError }) {
                             <span className={`delay-badge ${m.alert === "Overdue" ? "bad" : ""}`}>{m.alert}</span>
                           )}</td>
                         <td>{money(m.estimated_cost)}</td>
-                        <td><span className={`status-pill ${m.alert === "Overdue" ? "pill-bad" : ""}`}>{m.status}</span></td>
+                        <td><span className={`status-pill ${m.alert === "Overdue" ? "pill-bad" : PILL[m.status] || ""}`}>{m.status}</span></td>
                         <td>
                           <div className="row-actions">
                             {m.status === "Scheduled" && <>
@@ -284,7 +350,7 @@ export default function Maintenance({ setError }) {
                       </tr>
                       {finishing === m.id && (
                         <tr>
-                          <td colSpan={6}>
+                          <td colSpan={7}>
                             <div className="filters">
                               <input type="number" min="0" step="any" placeholder="Actual cost"
                                 value={finish.actual_cost}
@@ -306,12 +372,42 @@ export default function Maintenance({ setError }) {
                   ))}
                 </tbody>
               </table>
+              <Pager total={records.length} page={page} setPage={setPage} />
             </div>
           )}
         </section>
       )}
 
-      {tab === "Vehicles" && (
+      {tab === "Maintenance History" && (
+        <section className="panel">
+          {filterBar}
+          {records.length === 0 ? <p>No completed maintenance yet.</p> : (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>#</th><th>Vehicle No.</th><th>Maintenance Type</th><th>Completed</th>
+                    <th>Parts replaced</th><th>Cost</th></tr>
+                </thead>
+                <tbody>
+                  {records.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((m, i) => (
+                    <tr key={m.id}>
+                      <td>{(page - 1) * PAGE_SIZE + i + 1}</td>
+                      <td><b>{m.registration_number}</b><br /><small>{m.vehicle_type}</small></td>
+                      <td>{m.category}{m.description ? <><br /><small>{m.description}</small></> : null}</td>
+                      <td>{m.completed_at ? m.completed_at.slice(0, 10) : m.scheduled_date}</td>
+                      <td>{m.parts_replaced || "\u2014"}</td>
+                      <td>{money(m.actual_cost)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <Pager total={records.length} page={page} setPage={setPage} />
+            </div>
+          )}
+        </section>
+      )}
+
+      {tab === "Vehicle List" && (
         <section className="panel">
           <div className="table-wrap">
             <table>
