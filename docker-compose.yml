@@ -32,7 +32,9 @@ services:
     environment: &api-env
       DATABASE_URL: postgresql+psycopg://fleetflow:fleetflow@db:5432/fleetflow
       REDIS_URL: redis://redis:6379/0
-      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY before starting the app profile}
+      # Empty when not set: the API then refuses to start (backend/security.py), which is the safe
+      # failure. A ":?" check here would break plain `docker compose up -d` for everyone.
+      SECRET_KEY: ${SECRET_KEY:-}
       ALLOWED_ORIGINS: http://localhost:8080
       TOMTOM_API_KEY: ${TOMTOM_API_KEY:-}
       REPORT_DIR: /app/reports

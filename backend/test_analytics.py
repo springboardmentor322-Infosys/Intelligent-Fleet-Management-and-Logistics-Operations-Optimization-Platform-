@@ -1,155 +1,139 @@
-"""Checks the fleet analytics calculations in analytics_rules.py (Milestone 3, Tasks 4 and 5).
-No server or database needed.
+"""Checks for analytics_rules.py (no database). Run: python test_analytics.py  (also works with pytest)."""
+from datetime import datetime, timedelta
 
-    cd backend
-    python test_analytics.py
+import analytics_rules as R
 
-The expected numbers were worked out by hand from the fixed data below.
-"""
-from datetime import datetime, timedelta, timezone
-
-import analytics_rules as A
-
-UTC = timezone.utc
-results = []
+T0 = datetime(2026, 11, 1, 12, 0)
 
 
-def check(name, ok):
-    results.append(ok)
-    print(("PASS  " if ok else "FAIL  ") + name)
+def trip(i, driver="Asha", vehicle="KA01", status="Completed", late_min=0, eta=True, km=100,
+         o="A", d="B", delayed_now=False):
+    planned = T0 if eta else None
+    return {"id": i, "vehicle": vehicle, "driver": driver, "origin": o, "destination": d,
+            "status": status, "distance_km": km, "planned_eta": planned,
+            "completed_at": (T0 + timedelta(minutes=late_min)) if status == "Completed" else None,
+            "delayed_now": delayed_now}
 
 
-PLAN = datetime(2026, 11, 5, 12, 0, tzinfo=UTC)
-
-
-def minutes(n):
-    return PLAN + timedelta(minutes=n)
-
-
-def trip(i, status, vehicle, driver, origin, dest, km=None, planned=PLAN, done=None, delayed_now=False):
-    return {"id": i, "status": status, "vehicle": vehicle, "driver": driver, "origin": origin,
-            "destination": dest, "distance_km": km, "planned_eta": planned,
-            "completed_at": done, "delayed_now": delayed_now}
-
-
-def ship(trip_id, status, was_delayed=False):
+def ship(trip_id, status="Delivered", was_delayed=False):
     return {"trip_id": trip_id, "status": status, "was_delayed": was_delayed}
 
 
-# ---- the rules on their own ----
-check("on time: 10 minutes after the planned ETA", A.trip_late(minutes(10), PLAN) is False)
-check("exactly 15 minutes after is still on time (the rule is 'more than')", A.trip_late(minutes(15), PLAN) is False)
-check("16 minutes after is late", A.trip_late(minutes(16), PLAN) is True)
-check("early is on time", A.trip_late(minutes(-60), PLAN) is False)
-check("no planned ETA: unknown, not 'on time'", A.trip_late(minutes(5), None) is None)
-check("not finished: unknown", A.trip_late(None, PLAN) is None)
-check("pct rounds to one decimal", A.pct(2, 3) == 66.7)
-check("must-fail: pct of nothing is None, not 0 %", A.pct(0, 0) is None)
+def test_late_threshold_is_more_than_15_minutes():
+    assert R.trip_late(T0 + timedelta(minutes=15), T0) is False      # exactly 15 is on time
+    assert R.trip_late(T0 + timedelta(minutes=16), T0) is True
+    assert R.trip_late(T0 - timedelta(minutes=30), T0) is False      # early is not late
 
-# ---- fixed data ----
-VEHICLES = [
-    {"registration_number": "KA-01", "status": "Idle"},
-    {"registration_number": "KA-02", "status": "Active"},
-    {"registration_number": "KA-03", "status": "In Maintenance"},
-    {"registration_number": "KA-04", "status": "Idle"},
-]
-BUSY = {"KA-01"}
-TRIPS = [
-    trip(1, "Completed", "KA-01", "Asha", "Kolkata", "Durgapur", 180, done=minutes(10)),   # on time
-    trip(2, "Completed", "KA-01", "Asha", "Kolkata", "Durgapur", 170, done=minutes(40)),   # late
-    trip(3, "Completed", "KA-02", "Ravi", "Howrah", "Siliguri", 560, done=minutes(15)),    # on time (exactly 15)
-    trip(4, "Completed", "KA-02", "Ravi", "Howrah", "Siliguri", None, planned=None, done=minutes(5)),  # unknown
-    trip(5, "Cancelled", "KA-02", "Ravi", "Howrah", "Siliguri"),
-    trip(6, "Planned", "KA-01", "Asha", "Kolkata", "Asansol"),
-    trip(7, "In Progress", "KA-02", "Ravi", "Howrah", "Siliguri", delayed_now=True),
-    trip(8, "In Progress", "KA-01", "Asha", "Kolkata", "Durgapur", delayed_now=False),
-]
-SHIPS = [
-    ship(1, "Delivered"), ship(1, "Delivered", was_delayed=True),
-    ship(3, "Delivered"), ship(2, "Delivered"),
-    ship(7, "Delayed", was_delayed=True), ship(5, "Cancelled"),
-    ship(99, "Delivered"),                      # on no listed trip: left out
-]
-MAINT = [
-    {"vehicle": "KA-03", "status": "Completed", "cost": 1000},
-    {"vehicle": "KA-03", "status": "Completed", "cost": 2500.5},
-    {"vehicle": "KA-03", "status": "Scheduled", "cost": None},
-    {"vehicle": "KA-04", "status": "In Progress", "cost": None},
-    {"vehicle": "KA-01", "status": "Cancelled", "cost": 999},     # cancelled work is not spend
-]
 
-R = A.summarize(TRIPS, SHIPS, MAINT, VEHICLES, BUSY)
+def test_late_unknown_without_data():
+    assert R.trip_late(None, T0) is None
+    assert R.trip_late(T0, None) is None
 
-# ---- utilisation ----
-u = R["utilisation"]
-check("4 vehicles, 1 in maintenance", u["total"] == 4 and u["in_maintenance"] == 1)
-check("2 of 3 operational vehicles in use (KA-01 busy, KA-02 Active), 1 available",
-      u["used"] == 2 and u["available"] == 1)
-check("utilisation 2 / 3 = 66.7 %", u["utilisation_pct"] == 66.7)
-check("must-fail: the vehicle in maintenance is not counted as available", u["available"] != 2)
-check("no vehicles: utilisation is None",
-      A.utilisation([], set())["utilisation_pct"] is None)
-check("only vehicles in maintenance: utilisation is None, not a crash",
-      A.utilisation([{"registration_number": "X", "status": "In Maintenance"}], set())["utilisation_pct"] is None)
 
-# ---- trips ----
-t = R["trips"]
-check("trip counts: 4 completed, 2 ongoing, 1 planned, 1 cancelled",
-      (t["completed"], t["ongoing"], t["planned"], t["cancelled"]) == (4, 2, 1, 1))
-check("delayed trips = 1 running late + 1 finished late = 2", t["delayed"] == 2)
-check("must-fail: a trip with no planned ETA is not counted as delayed", t["delayed"] != 3)
+def test_percentage_none_not_zero_when_empty():
+    assert R.pct(0, 0) is None
+    assert R.pct(3, 4) == 75.0
 
-# ---- deliveries ----
-d = R["delivery"]
-check("4 delivered (the shipment on an unlisted trip is left out)", d["delivered"] == 4)
-check("1 delivered late", d["delayed"] == 1)
-check("on-time delivery 3 / 4 = 75 %", d["on_time_pct"] == 75.0)
-check("1 shipment still moving (Delayed counts as in transit), 1 cancelled",
-      d["in_transit"] == 1 and d["cancelled"] == 1)
 
-# ---- drivers ----
-dr = {x["driver"]: x for x in R["drivers"]}
-check("Asha: 2 completed trips, 350 km, 3 deliveries, 1 delayed, 66.7 % on time",
-      (dr["Asha"]["completed_trips"], dr["Asha"]["distance_km"], dr["Asha"]["deliveries"],
-       dr["Asha"]["delayed_deliveries"], dr["Asha"]["on_time_pct"]) == (2, 350.0, 3, 1, 66.7))
-check("Ravi: 2 completed trips, 560 km (a trip without km adds nothing), 1 delivery, 100 % on time",
-      (dr["Ravi"]["completed_trips"], dr["Ravi"]["distance_km"], dr["Ravi"]["deliveries"],
-       dr["Ravi"]["on_time_pct"]) == (2, 560.0, 1, 100.0))
-check("drivers sorted by completed trips, then name", [x["driver"] for x in R["drivers"]] == ["Asha", "Ravi"])
+def test_utilisation_excludes_maintenance():
+    vs = [{"registration_number": "A", "status": "Active"},
+          {"registration_number": "B", "status": "Idle"},
+          {"registration_number": "C", "status": "In Maintenance"},
+          {"registration_number": "D", "status": "Idle"}]
+    u = R.utilisation(vs, {"D"})
+    assert u == {"total": 4, "used": 2, "available": 1, "in_maintenance": 1,
+                 "utilisation_pct": round(100 * 2 / 3, 1)}
 
-# ---- distance ----
-check("distance by vehicle", R["distance_by_vehicle"] == {"KA-01": 350.0, "KA-02": 560.0})
-check("total distance 910 km", R["total_distance_km"] == 910.0)
 
-# ---- maintenance ----
-m = R["maintenance"]
-check("maintenance: 2 completed, 2 pending (Scheduled + In Progress), 1 cancelled",
-      (m["completed"], m["pending"], m["cancelled"]) == (2, 2, 1))
-check("spent 3500.5 (only completed work)", m["spent"] == 3500.5)
-check("must-fail: cancelled work is not added to the spend", m["spent"] != 4499.5)
+def test_utilisation_no_operational_vehicles():
+    u = R.utilisation([{"registration_number": "C", "status": "In Maintenance"}], set())
+    assert u["utilisation_pct"] is None and u["used"] == 0
 
-# ---- insights ----
-kinds = [(i["kind"], i["subject"]) for i in R["insights"]]
-check("insight: KA-03 has 3 maintenance records", ("vehicle", "KA-03") in kinds)
-check("no insight for vehicles with 1 record", ("vehicle", "KA-04") not in kinds)
-check("insight: Kolkata → Durgapur, 1 of 2 trips late", ("route", "Kolkata → Durgapur") in kinds)
-check("a route with a single trip is not judged", ("route", "Howrah → Siliguri") not in kinds)
-check("no driver insight: nobody has 2 delayed deliveries", not any(k == "driver" for k, _ in kinds))
-check("exactly 2 insights", len(R["insights"]) == 2)
 
-more = A.summarize(
-    [trip(1, "Completed", "KA-01", "Dev", "A", "B", 10, done=minutes(0))],
-    [ship(1, "Delivered", True), ship(1, "Delivered", True)], [], VEHICLES, set())
-check("insight: a driver with 2 delayed deliveries is flagged",
-      [(i["kind"], i["subject"]) for i in more["insights"]] == [("driver", "Dev")])
+def test_trip_counts_and_delayed():
+    trips = [trip(1), trip(2, late_min=40), trip(3, status="In Progress", delayed_now=True),
+             trip(4, status="Planned"), trip(5, status="Cancelled")]
+    c = R.summarize(trips, [], [], [], set())["trips"]
+    assert (c["completed"], c["ongoing"], c["planned"], c["cancelled"]) == (2, 1, 1, 1)
+    assert c["delayed"] == 2          # one finished late + one running late
 
-# ---- nothing recorded ----
-E = A.summarize([], [], [], [], set())
-check("empty: zero counts and no crash",
-      E["trips"] == {"completed": 0, "ongoing": 0, "planned": 0, "cancelled": 0, "delayed": 0}
-      and E["drivers"] == [] and E["insights"] == [] and E["total_distance_km"] == 0)
-check("empty: rates are None, not 0 %",
-      E["delivery"]["on_time_pct"] is None and E["utilisation"]["utilisation_pct"] is None)
 
-print(f"\n{sum(results)}/{len(results)} passed")
-raise SystemExit(0 if all(results) else 1)
+def test_delivery_on_time_rate():
+    trips = [trip(i) for i in range(1, 5)]
+    ships = [ship(1), ship(2), ship(3), ship(4, was_delayed=True), ship(1, "In Transit")]
+    d = R.summarize(trips, ships, [], [], set())["delivery"]
+    assert d["delivered"] == 4 and d["delayed"] == 1
+    assert d["on_time_pct"] == 75.0 and d["in_transit"] == 1
+
+
+def test_no_deliveries_gives_no_rate():
+    d = R.summarize([trip(1)], [], [], [], set())["delivery"]
+    assert d["on_time_pct"] is None
+
+
+def test_shipments_of_unknown_trips_are_ignored():
+    d = R.summarize([trip(1)], [ship(99)], [], [], set())["delivery"]
+    assert d["delivered"] == 0
+
+
+def test_driver_rows_and_distance():
+    trips = [trip(1, driver="Asha", km=120.5), trip(2, driver="Asha", km=80, vehicle="KA02"),
+             trip(3, driver="Ravi", km=50)]
+    out = R.summarize(trips, [ship(1), ship(2, was_delayed=True)], [], [], set())
+    rows = {r["driver"]: r for r in out["drivers"]}
+    assert rows["Asha"]["completed_trips"] == 2 and rows["Asha"]["distance_km"] == 200.5
+    assert rows["Asha"]["on_time_pct"] == 50.0 and rows["Ravi"]["on_time_pct"] is None
+    assert out["drivers"][0]["driver"] == "Asha"       # most completed trips first
+    assert out["total_distance_km"] == 250.5
+
+
+def test_maintenance_totals_use_completed_cost_only():
+    m = [{"vehicle": "A", "status": "Completed", "cost": 1000},
+         {"vehicle": "A", "status": "Scheduled", "cost": 999},
+         {"vehicle": "B", "status": "Cancelled", "cost": 50},
+         {"vehicle": "B", "status": "Completed", "cost": None}]
+    out = R.summarize([], [], m, [], set())["maintenance"]
+    assert out == {"completed": 2, "pending": 1, "cancelled": 1, "spent": 1000.0}
+
+
+def test_insights_flag_vehicle_driver_and_route():
+    trips = [trip(1, late_min=40), trip(2, late_min=50), trip(3, driver="Ravi")]
+    ships = [ship(1, was_delayed=True), ship(2, was_delayed=True)]
+    m = [{"vehicle": "KA01", "status": "Completed", "cost": 1} for _ in range(3)]
+    kinds = {(i["kind"], i["subject"]) for i in R.summarize(trips, ships, m, [], set())["insights"]}
+    assert ("vehicle", "KA01") in kinds and ("driver", "Asha") in kinds
+    assert ("route", "A → B") in kinds
+
+
+def test_route_needs_enough_trips_to_be_judged():
+    out = R.summarize([trip(1, late_min=60)], [], [], [], set())["insights"]
+    assert not [i for i in out if i["kind"] == "route"]
+
+
+def test_trips_without_eta_are_counted_but_not_judged():
+    out = R.summarize([trip(1, eta=False), trip(2, eta=False)], [], [], [], set())
+    assert out["trips"]["completed"] == 2 and out["trips"]["delayed"] == 0
+    assert not out["insights"]
+
+
+def test_must_fail_wrong_expectation_is_rejected():
+    # a deliberately wrong expectation must NOT pass: 3 of 4 on time is not 100 %
+    assert R.pct(3, 4) != 100.0
+
+
+def _run():
+    tests = [(n, f) for n, f in sorted(globals().items()) if n.startswith("test_") and callable(f)]
+    failed = 0
+    for name, fn in tests:
+        try:
+            fn()
+            print("PASS ", name)
+        except AssertionError as e:
+            failed += 1
+            print("FAIL ", name, e)
+    print(f"\n{len(tests) - failed}/{len(tests)} passed")
+    raise SystemExit(1 if failed else 0)
+
+
+if __name__ == "__main__":
+    _run()

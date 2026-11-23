@@ -30,7 +30,7 @@ Beat decides when.
 
 ## Check that it works
 
-1. Worker and Redis connected: `python -c "from tasks import ping; print(ping.delay().get(timeout=10))"` prints `pong`.
+1. Worker and Redis connected: `python -c "from tasks import ping; print(ping.delay().id)"` prints a task id, and the worker window shows `Task tasks.ping[...] received` then `succeeded ... 'pong'`. (No result backend is configured, so `.get()` is not available.)
 2. Run a job once without a worker: `python -c "import tasks; print(tasks.check_maintenance())"`.
 3. Watch Beat trigger jobs quickly: stop Beat, then
    `$env:CELERY_BEAT_FAST="1"; celery -A celery_app beat --loglevel=info`
