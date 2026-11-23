@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { api, download } from "../api";
 import Icon from "../Icons.jsx";
+import { EmptyState } from "../ui.jsx";
 
 const CATEGORIES = [
   "Engine Servicing", "Oil Change", "Tyre Replacement",
@@ -311,7 +312,7 @@ export default function Maintenance({ setError }) {
       {tab === "Maintenance Records" && (
         <section className="panel">
           {filterBar}
-          {records.length === 0 ? <p>No maintenance records found.</p> : (
+          {records.length === 0 ? <EmptyState title="No maintenance records found." /> : (
             <div className="table-wrap">
               <table>
                 <thead>
@@ -381,7 +382,7 @@ export default function Maintenance({ setError }) {
       {tab === "Maintenance History" && (
         <section className="panel">
           {filterBar}
-          {records.length === 0 ? <p>No completed maintenance yet.</p> : (
+          {records.length === 0 ? <EmptyState title="No completed maintenance yet." /> : (
             <div className="table-wrap">
               <table>
                 <thead>
@@ -459,7 +460,7 @@ export default function Maintenance({ setError }) {
 
       {tab === "Alerts" && (
         <section className="panel">
-          {alerts.length === 0 ? <p>No maintenance alerts.</p> : (
+          {alerts.length === 0 ? <EmptyState title="No maintenance alerts." /> : (
             <div className="table-wrap">
               <table>
                 <thead><tr><th>Vehicle</th><th>Category</th><th>Due date</th><th>Alert</th><th>Action</th></tr></thead>
@@ -510,7 +511,7 @@ export default function Maintenance({ setError }) {
                 <button className="secondary-button" onClick={() => exportReport("pdf")}>Export PDF</button>
               </div>
               <h3>Cost per vehicle</h3>
-              {Object.keys(report.summary.per_vehicle).length === 0 ? <p>No records match.</p> : (
+              {Object.keys(report.summary.per_vehicle).length === 0 ? <EmptyState title="No records match." /> : (
                 <div className="table-wrap">
                   <table>
                     <thead><tr><th>Vehicle</th><th>Records</th><th>Spent</th><th>Open estimate</th></tr></thead>

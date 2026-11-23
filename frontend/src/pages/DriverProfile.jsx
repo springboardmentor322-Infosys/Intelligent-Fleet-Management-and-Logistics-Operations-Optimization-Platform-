@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { api, apiForm, fetchBlob } from "../api";
-import { DelayBadge, fmt, fmtTime } from "../ui";
+import { DelayBadge, fmt, fmtTime, EmptyState, LoadingState } from "../ui.jsx";
 
 const DOC_TYPES = ["Licence front", "Licence back", "ID proof", "Other"];
 const DUTY_CLASS = { Available: "ok", "On Trip": "info", "At Stop": "warn", "Off Duty": "bad" };
@@ -282,7 +282,7 @@ export default function DriverProfile({ driverId, showBack, onBack, setError }) 
       </section>
     );
   }
-  if (!p) return <p>Loading...</p>;
+  if (!p) return <LoadingState />;
 
   const { personal, licence, vehicle, trips, gps, performance: perf, account } = p;
   const freeVehicles = vehicles.filter((v) => !v.assigned_driver_id && v.status !== "In Maintenance");
@@ -420,7 +420,7 @@ export default function DriverProfile({ driverId, showBack, onBack, setError }) 
               <Row label="Registration number">{vehicle.registration_number}</Row>
               <Row label="Vehicle status">{vehicle.status}</Row>
             </>
-          ) : <p>No vehicle assigned.</p>}
+          ) : <EmptyState title="No vehicle assigned." />}
         </section>
 
         {/* 7. Performance */}
@@ -450,7 +450,7 @@ export default function DriverProfile({ driverId, showBack, onBack, setError }) 
               <p>Vehicle {trips.current.vehicle} · ETA {fmtTime(trips.current.eta)} (planned {fmtTime(trips.current.planned_eta)}) ·{" "}
                 {trips.current.route_type ? `${trips.current.route_type} route` : "route not chosen"}</p>
             </>
-          ) : <p>No trip in progress.</p>}
+          ) : <EmptyState title="No trip in progress." />}
 
           {trips.upcoming.length > 0 && (
             <>
@@ -462,7 +462,7 @@ export default function DriverProfile({ driverId, showBack, onBack, setError }) 
           )}
 
           <h4>Assigned shipments</h4>
-          {trips.shipments.length === 0 ? <p>No shipments assigned.</p> : (
+          {trips.shipments.length === 0 ? <EmptyState title="No shipments assigned." /> : (
             <div className="table-wrap">
               <table>
                 <thead><tr><th>Code</th><th>Route</th><th>Cargo</th><th>Trip</th><th>Status</th></tr></thead>
@@ -482,7 +482,7 @@ export default function DriverProfile({ driverId, showBack, onBack, setError }) 
           )}
 
           <h4>Trip history</h4>
-          {trips.history.length === 0 ? <p>No finished trips yet.</p> : (
+          {trips.history.length === 0 ? <EmptyState title="No finished trips yet." /> : (
             <div className="table-wrap">
               <table>
                 <thead><tr><th>Trip</th><th>Route</th><th>Vehicle</th><th>Finished</th><th>Distance</th><th>Status</th></tr></thead>
@@ -506,7 +506,7 @@ export default function DriverProfile({ driverId, showBack, onBack, setError }) 
         {/* 6. GPS tracking */}
         <section className="panel wide">
           <h3>GPS tracking</h3>
-          {!gps ? <p>No vehicle is assigned, so there is nothing to track.</p> : (
+          {!gps ? <EmptyState title="No vehicle is assigned, so there is nothing to track." /> : (
             <>
               <Row label="Vehicle">{gps.registration_number}</Row>
               <Row label="Last seen">{gps.last_seen ? fmt(gps.last_seen) : "No position received yet"}</Row>

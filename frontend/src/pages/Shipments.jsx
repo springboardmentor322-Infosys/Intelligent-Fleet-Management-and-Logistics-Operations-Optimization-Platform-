@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState } from "react";
 import { api } from "../api";
-import { fmt, fmtTime } from "../ui";
+import { fmt, fmtTime, EmptyState } from "../ui.jsx";
 
 const STATUSES = ["Created", "Assigned", "In Transit", "Delayed", "Delivered", "Cancelled"];
 const blank = { origin: "", destination: "", description: "", weight_kg: "" };
@@ -163,7 +163,7 @@ export default function Shipments({ canDispatch, setError }) {
           <button className="secondary-button" type="submit">Search</button>
         </form>
 
-        {shipments.length === 0 ? <p>No shipments found.</p> : (
+        {shipments.length === 0 ? <EmptyState title="No shipments found." /> : (
           <div className="table-wrap">
             <table>
               <thead>

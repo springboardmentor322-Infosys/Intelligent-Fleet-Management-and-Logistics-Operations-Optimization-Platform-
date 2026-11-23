@@ -6,6 +6,7 @@ export default function Login({ onLogin, onBack }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [show, setShow] = useState(false);
 
   async function submit(e) {
     e.preventDefault();
@@ -28,7 +29,7 @@ export default function Login({ onLogin, onBack }) {
   return (
     <div className="login-wrap">
       <div className="login-side">
-        <h1 className="logo">Fleet<span>Flow</span></h1>
+        <h1 className="logo"><span className="logo-mark">F</span><b>Fleet<span>Flow</span></b></h1>
         <p>Fleet Management &amp; Logistics Tracking Platform</p>
         <ul>
           <li>Vehicle Management</li>
@@ -40,16 +41,19 @@ export default function Login({ onLogin, onBack }) {
       <form className="login-form" onSubmit={submit}>
         <h2>Welcome Back</h2>
         <p>Login to your FleetFlow account</p>
-        {error && <div className="error-message">{error}</div>}
+        {error && <div className="error-message" role="alert">{error}</div>}
         <label>
           Email Address
-          <input type="email" required value={email}
+          <input type="email" required autoComplete="email" autoFocus value={email}
             onChange={(e) => setEmail(e.target.value)} placeholder="Enter your email" />
         </label>
         <label>
           Password
-          <input type="password" required value={password}
-            onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" />
+          <span className="pw-field">
+            <input type={show ? "text" : "password"} required value={password} autoComplete="current-password"
+              onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" />
+            <button type="button" className="pw-toggle" onClick={() => setShow((v) => !v)}>{show ? "Hide" : "Show"}</button>
+          </span>
         </label>
         <button className="primary-button" disabled={busy}>
           {busy ? "Signing in..." : "Login"}

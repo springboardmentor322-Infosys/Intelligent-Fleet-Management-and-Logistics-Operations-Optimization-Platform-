@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import { DelayBadge, fmt, fmtMin, fmtTime } from "../ui";
+import { DelayBadge, fmt, fmtMin, fmtTime, EmptyState } from "../ui.jsx";
 
 const STATUSES = ["Planned", "In Progress", "Completed", "Cancelled"];
 const blank = {
@@ -464,7 +464,7 @@ export default function Trips({ canDispatch, setError }) {
                 </p>
               ) : null}
               <p><small>{panel.data.traffic_note}</small></p>
-              {panel.data.options.length === 0 ? <p>No alternative routes to compare.</p> : (
+              {panel.data.options.length === 0 ? <EmptyState title="No alternative routes to compare." /> : (
                 <div className="route-options">
                   {panel.data.options.map((o) => {
                     const best = panel.data.recommend && o.index === panel.data.best_option;
@@ -507,7 +507,7 @@ export default function Trips({ canDispatch, setError }) {
           </select>
         </div>
 
-        {trips.length === 0 ? <p>No trips found.</p> : (
+        {trips.length === 0 ? <EmptyState title="No trips found." /> : (
           <div className="table-wrap">
             <table>
               <thead>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import "./App.css";
 import "./extra.css";
+import "./theme.css";
 import { api, clearToken, getToken } from "./api";
 import Landing from "./pages/Landing.jsx";
 import Login from "./pages/Login.jsx";
@@ -20,6 +21,7 @@ import Users from "./pages/Users.jsx";
 import Profile from "./pages/Profile.jsx";
 import DriverProfile from "./pages/DriverProfile.jsx";
 import Icon from "./Icons.jsx";
+import { LoadingState } from "./ui.jsx";
 
 // Which icon goes in front of each menu option (the option names are the page names).
 const MENU_ICONS = {
@@ -48,6 +50,7 @@ function App() {
   const [profileDriver, setProfileDriver] = useState(null); // the driver whose profile staff opened
   const [error, setError] = useState("");
   const [userMenu, setUserMenu] = useState(false); // the account menu at the bottom of the sidebar
+  const [navOpen, setNavOpen] = useState(false); // the sidebar drawer on small screens
   const userMenuRef = useRef(null);
 
   // Close the account menu on an outside click or Escape.
@@ -81,7 +84,7 @@ function App() {
     setPage("Dashboard");
   }
 
-  if (checking) return <p style={{ padding: 24 }}>Loading...</p>;
+  if (checking) return <div style={{ padding: 32 }}><LoadingState /></div>;
   if (!user && screen === "landing") return <Landing onLogin={() => setScreen("login")} />;
   if (!user)
     return (
@@ -105,16 +108,17 @@ function App() {
   if (user.role === "admin") menu.push("Users & Roles");
   if (user.role === "driver") menu.splice(1, 0, "Driver Profile"); // a driver's own profile
 
-  const go = (p) => { setPage(p); setError(""); };
+  const go = (p) => { setPage(p); setError(""); setNavOpen(false); window.scrollTo?.(0, 0); };
   const openDriver = (id) => { setProfileDriver(id); go("Driver Profile"); };
 
   return (
     <div className="app">
-      <aside className="sidebar">
-        <h2 className="logo">Fleet<span>Flow</span></h2>
+      {navOpen && <button className="sidebar-scrim" aria-label="Close menu" onClick={() => setNavOpen(false)} />}
+      <aside className={`sidebar ${navOpen ? "open" : ""}`}>
+        <h2 className="logo"><span className="logo-mark">F</span><b>Fleet<span>Flow</span></b></h2>
         <p className="menu-label">FLEET OPERATIONS</p>
         {menu.map((item) => (
-          <button key={item} className={`menu-item ${page === item || (item === "Drivers" && page === "Driver Profile") ? "active" : ""}`}
+          <button key={item} aria-current={page === item ? "page" : undefined} className={`menu-item ${page === item || (item === "Drivers" && page === "Driver Profile") ? "active" : ""}`}
             onClick={() => go(item)}>
             <Icon name={MENU_ICONS[item]} />
             {label(item)}
@@ -148,13 +152,14 @@ function App() {
 
       <main className="main-content">
         <header className="topbar">
+          <button className="menu-toggle" aria-label="Open menu" onClick={() => setNavOpen(true)}>☰</button>
           <div><h1>{label(page)}</h1><p>FleetFlow / {label(page)}</p></div>
           <span className="online">
             {user.username} · {ROLE_LABEL[user.role]}
           </span>
         </header>
 
-        {error && <div className="error-message">{error}</div>}
+        {error && <div className="error-message" role="alert">{error}</div>}
 
         {page === "Dashboard" && <Dashboard user={user} canEdit={canEdit} go={go} setError={setError} />}
         {page === "Vehicles" && <Vehicles canEdit={canEdit} setError={setError} />}

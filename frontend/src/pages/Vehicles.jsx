@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
+import { EmptyState } from "../ui.jsx";
 
 const TYPES = ["Truck", "Van", "Trailer", "Car", "Pickup", "Bus"];
 const FUELS = ["Diesel", "Petrol", "CNG", "Electric", "Hybrid"];
@@ -140,7 +141,7 @@ export default function Vehicles({ canEdit, setError }) {
           </select>
         </div>
 
-        {vehicles.length === 0 ? <p>No vehicles found.</p> : (
+        {vehicles.length === 0 ? <EmptyState title="No vehicles found." /> : (
           <div className="table-wrap">
             <table>
               <thead>

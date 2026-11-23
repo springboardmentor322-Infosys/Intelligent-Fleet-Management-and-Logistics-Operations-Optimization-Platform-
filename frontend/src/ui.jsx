@@ -40,3 +40,24 @@ export function EtaLine({ trip }) {
     </span>
   );
 }
+
+// A friendly message for a table or list with nothing in it.
+export function EmptyState({ title = "Nothing here yet", hint }) {
+  return (
+    <div className="empty-state">
+      <div className="empty-icon" aria-hidden="true">∅</div>
+      <b>{title}</b>
+      {hint && <span>{hint}</span>}
+    </div>
+  );
+}
+
+// Shimmering placeholder blocks shown while a page loads.
+export function LoadingState({ rows = 3 }) {
+  return (
+    <div className="loading-state" role="status" aria-label="Loading">
+      <div className="skeleton" style={{ height: 84 }} />
+      {Array.from({ length: rows }, (_, i) => <div key={i} className="skeleton" style={{ height: 56 }} />)}
+    </div>
+  );
+}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
-import { fmt } from "../ui";
+import { fmt, EmptyState, LoadingState } from "../ui.jsx";
 import Icon from "../Icons.jsx";
 
 const blank = { trip_id: "", driver_id: "", vehicle_id: "" };
@@ -56,7 +56,7 @@ export default function DriverAssignment({ setError }) {
     }
   }
 
-  if (!data) return <p>Loading assignments...</p>;
+  if (!data) return <LoadingState />;
   const s = data.stats;
   const cards = [
     ["Total Drivers", s.drivers, "blue", "drivers", `${s.drivers_on_trip} on trip · ${s.drivers_off_duty} off duty`],
@@ -142,7 +142,7 @@ export default function DriverAssignment({ setError }) {
               {showHistory ? "Hide History" : "View History"}
             </button>
           </div>
-          {data.current.length === 0 ? <p>No active assignments.</p> : (
+          {data.current.length === 0 ? <EmptyState title="No active assignments." /> : (
             <div className="table-wrap">
               <table>
                 <thead><tr><th>#</th><th>Driver</th><th>Vehicle</th><th>Trip</th><th>Start</th><th>Status</th></tr></thead>
@@ -165,7 +165,7 @@ export default function DriverAssignment({ setError }) {
       {showHistory && (
         <section className="panel">
           <h3>Assignment history</h3>
-          {history.length === 0 ? <p>No assignments made here yet.</p> : (
+          {history.length === 0 ? <EmptyState title="No assignments made here yet." /> : (
             <div className="table-wrap">
               <table>
                 <thead><tr><th>Date</th><th>Driver</th><th>Vehicle</th><th>Trip</th><th>By</th><th>Completion status</th></tr></thead>

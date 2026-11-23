@@ -3,6 +3,7 @@ import {
   Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import { api } from "../api";
+import { EmptyState, LoadingState } from "../ui.jsx";
 
 const TRIP_STATUSES = ["Planned", "In Progress", "Completed", "Cancelled"];
 const noFilter = { start: "", end: "", vehicle: "", driver_id: "", status: "" };
@@ -20,7 +21,7 @@ const COLORS = { blue: "#2563eb", green: "#16a34a", amber: "#f59e0b", red: "#dc2
 // One bar per label. `colors` can colour each bar so a status always has the same colour.
 function BarsChart({ data, colors, unit = "" }) {
   const rows = Object.entries(data || {}).map(([name, value]) => ({ name, value }));
-  if (!rows.length || rows.every((r) => !r.value)) return <p>No data for these filters.</p>;
+  if (!rows.length || rows.every((r) => !r.value)) return <EmptyState title="No data for these filters." />;
   return (
     <ResponsiveContainer width="100%" height={260}>
       <BarChart data={rows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -40,7 +41,7 @@ function BarsChart({ data, colors, unit = "" }) {
 function ShareChart({ data, colors }) {
   const rows = Object.entries(data).map(([name, value]) => ({ name, value }));
   const total = rows.reduce((sum, r) => sum + r.value, 0);
-  if (!total) return <p>No vehicles registered yet.</p>;
+  if (!total) return <EmptyState title="No vehicles registered yet." />;
   return (
     <ResponsiveContainer width="100%" height={260}>
       <PieChart>
@@ -60,7 +61,7 @@ function DriverChart({ drivers }) {
     name: r.driver, "Completed trips": r.completed_trips,
     "Successful deliveries": r.deliveries - r.delayed_deliveries, "Delayed deliveries": r.delayed_deliveries,
   }));
-  if (!rows.length) return <p>No trips for these filters.</p>;
+  if (!rows.length) return <EmptyState title="No trips for these filters." />;
   return (
     <ResponsiveContainer width="100%" height={300}>
       <BarChart data={rows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -101,7 +102,7 @@ export default function FleetPerformance({ setError }) {
 
   const setF = (k) => (e) => setFilters({ ...filters, [k]: e.target.value });
 
-  if (!d) return <p>Loading performance dashboard...</p>;
+  if (!d) return <LoadingState />;
   const fs = d.fleet_summary, ds = d.driver_summary, u = d.utilisation, t = d.trips, dl = d.delivery, m = d.maintenance;
 
   const fleetCards = [
@@ -181,7 +182,7 @@ export default function FleetPerformance({ setError }) {
       <section className="panel">
         <h3>Driver performance</h3>
         <DriverChart drivers={d.drivers} />
-        {d.drivers.length === 0 ? <p>No trips for these filters.</p> : (
+        {d.drivers.length === 0 ? <EmptyState title="No trips for these filters." /> : (
           <div className="table-wrap"><table>
             <thead><tr><th>Driver</th><th>Completed trips</th><th>Deliveries</th><th>Delayed</th><th>On time</th><th>Distance (km)</th></tr></thead>
             <tbody>{d.drivers.map((r) => (

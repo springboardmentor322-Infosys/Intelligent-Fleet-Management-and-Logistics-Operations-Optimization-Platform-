@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, download } from "../api";
+import { EmptyState } from "../ui.jsx";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const blank = () => ({ vehicle_id: "", fuel_type: "", quantity_litres: "", price_per_litre: "", fueled_on: today() });
@@ -15,7 +16,7 @@ function query(f) {
 function Bars({ data, unit = "" }) {
   const entries = Object.entries(data || {});
   const max = Math.max(1, ...entries.map(([, v]) => v));
-  if (!entries.length) return <p>No data yet.</p>;
+  if (!entries.length) return <EmptyState title="No data yet." />;
   return (
     <div className="bars">
       {entries.map(([k, v]) => (
@@ -187,7 +188,7 @@ export default function Fuel({ setError }) {
           <section className="panel"><h3>Cost by month</h3><Bars data={stats.by_month} /></section>
           <section className="panel">
             <h3>Vehicle-wise consumption</h3>
-            {stats.per_vehicle.length === 0 ? <p>No fuel records match.</p> : (
+            {stats.per_vehicle.length === 0 ? <EmptyState title="No fuel records match." /> : (
               <div className="table-wrap"><table>
                 <thead><tr><th>Vehicle</th><th>Litres</th><th>Cost</th><th>Distance (km)</th><th>km / L</th></tr></thead>
                 <tbody>{stats.per_vehicle.map((r) => (
@@ -206,7 +207,7 @@ export default function Fuel({ setError }) {
 
       <section className="panel">
         <h3>Fuel history</h3>
-        {records.length === 0 ? <p>No fuel records found.</p> : (
+        {records.length === 0 ? <EmptyState title="No fuel records found." /> : (
           <div className="table-wrap"><table>
             <thead><tr><th>Date</th><th>Vehicle</th><th>Fuel</th><th>Litres</th><th>Price/L</th><th>Total</th><th></th></tr></thead>
             <tbody>{records.map((r) => (

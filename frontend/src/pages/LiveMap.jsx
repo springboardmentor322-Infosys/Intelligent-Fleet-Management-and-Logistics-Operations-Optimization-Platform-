@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { api, getToken, API_URL, WS_URL } from "../api";
-import { EtaLine, fmtTime } from "../ui";
+import { EtaLine, fmtTime, EmptyState, LoadingState } from "../ui.jsx";
 
 const STALE_MS = 2 * 60 * 1000; // no ping for 2 minutes = no signal
 
@@ -348,7 +348,7 @@ Content-Type: application/json
           {!positions[selected].trip ? (
             <p>{positions[selected].registration_number} has no trip in progress, so there is no route to show.</p>
           ) : !routes ? (
-            <p>Loading routes...</p>
+            <LoadingState />
           ) : !routes.ok ? (
             <p>Routes unavailable: {routes.error}</p>
           ) : (() => {
@@ -371,7 +371,7 @@ Content-Type: application/json
                 )}
                 {saved && saved.has_route && (
                   <p>
-                    <span style={{ display: "inline-block", width: 28, height: 3, marginRight: 8, verticalAlign: "middle", background: "#0b1f44" }} />
+                    <span style={{ display: "inline-block", width: 28, height: 3, marginRight: 8, verticalAlign: "middle", background: "#93c5fd" }} />
                     Route being followed: {saved.route_type} · {saved.distance_km} km (thin dark line)
                   </p>
                 )}
@@ -411,7 +411,7 @@ Content-Type: application/json
 
       <div className="live-layout">
         <aside className="panel live-list">
-          {list.length === 0 && <p>No vehicles yet.</p>}
+          {list.length === 0 && <EmptyState title="No vehicles yet." />}
           {list.map((v) => {
             const on = isOnline(v, now);
             return (

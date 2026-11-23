@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
+import { EmptyState } from "../ui.jsx";
 
 const blank = { name: "", license_number: "", phone: "" };
 
@@ -63,7 +64,7 @@ export default function Drivers({ canEdit, setError, onOpen }) {
       )}
 
       <section className="panel">
-        {drivers.length === 0 ? <p>No drivers yet.</p> : (
+        {drivers.length === 0 ? <EmptyState title="No drivers yet." /> : (
           <div className="table-wrap">
             <table>
               <thead>

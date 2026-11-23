@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import { fmt } from "../ui";
+import { fmt, EmptyState } from "../ui.jsx";
 
 const KEY = "ff_notifications_seen";
 const KIND_LABEL = {
@@ -64,10 +64,10 @@ export default function Notifications({ go, setError }) {
             {Object.entries(KIND_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
         </form>
-        {shown.length === 0 ? <p>No notifications.</p> : (
+        {shown.length === 0 ? <EmptyState title="No notifications." /> : (
           <ul className="history-list" style={{ listStyle: "none", paddingLeft: 0 }}>
             {shown.map((n) => (
-              <li key={n.id} style={{ padding: "8px 0", borderBottom: "1px solid #e2e8f0" }}>
+              <li key={n.id} style={{ padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
                 <b style={{ fontWeight: unread(n) ? 700 : 500 }}>
                   {unread(n) && <span className="delay-badge bad">New</span>} {n.title}
                 </b>
