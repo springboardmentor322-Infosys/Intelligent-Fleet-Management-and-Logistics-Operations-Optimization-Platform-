@@ -49,7 +49,7 @@ export default function Notifications({ go, setError }) {
     <>
       <section className="page-toolbar">
         <div>
-          <h2>Notifications</h2>
+          <h2>Alerts</h2>
           <p>Maintenance alerts, shipment and delivery updates, driver assignments and route changes from the last 7 days.</p>
         </div>
         <button className="secondary-button" onClick={markAll} disabled={unreadCount === 0}>
@@ -65,16 +65,20 @@ export default function Notifications({ go, setError }) {
           </select>
         </form>
         {shown.length === 0 ? <EmptyState title="No notifications." /> : (
-          <ul className="history-list" style={{ listStyle: "none", paddingLeft: 0 }}>
+          <ul className="notif-list">
             {shown.map((n) => (
-              <li key={n.id} style={{ padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
-                <b style={{ fontWeight: unread(n) ? 700 : 500 }}>
-                  {unread(n) && <span className="delay-badge bad">New</span>} {n.title}
-                </b>
-                <br />
-                <small>{KIND_LABEL[n.kind]} · {fmt(n.at)} · {n.message}</small>
+              <li key={n.id} className={`notif notif-${n.kind} ${unread(n) ? "unread" : ""}`}>
+                <span className="notif-dot" aria-hidden="true" />
+                <div className="notif-body">
+                  <div className="notif-title">
+                    <b>{n.title}</b>
+                    {unread(n) && <span className="delay-badge bad">New</span>}
+                  </div>
+                  <p>{n.message}</p>
+                  <small>{KIND_LABEL[n.kind]} · {fmt(n.at)}</small>
+                </div>
                 {go && n.page && (
-                  <> <button className="link-button" onClick={() => go(n.page)}>Open {n.page}</button></>
+                  <button className="secondary-button" onClick={() => go(n.page)}>Open {n.page}</button>
                 )}
               </li>
             ))}
