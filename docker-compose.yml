@@ -1,0 +1,32 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: fleetflow_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fleetflow
+      POSTGRES_USER: fleetflow_user
+      POSTGRES_PASSWORD: fleetflow_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fleetflow_user -d fleetflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    container_name: fleetflow_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+volumes:
+  postgres_data:
+  redis_data:

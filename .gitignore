@@ -1,0 +1,25 @@
+# Environment variables and secrets
+.env
+**/.env
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+
+# Alembic cache
+**/__pycache__/
+
+# Frontend dependencies
+node_modules/
+
+# Local files
+.DS_Store
+
+# VS Code settings
+.vscode/
+
+# Backup files
+*.backup
+*_backup.*

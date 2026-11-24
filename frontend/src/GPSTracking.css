@@ -1,0 +1,153 @@
+.gps-page {
+padding: 24px;
+color: #172b4d;
+}
+
+.gps-heading {
+display: flex;
+align-items: center;
+justify-content: space-between;
+gap: 16px;
+margin-bottom: 24px;
+}
+
+.gps-heading h1 {
+margin: 0 0 8px;
+font-size: 28px;
+}
+
+.gps-heading p {
+margin: 0;
+color: #64748b;
+}
+
+.simulation-badge {
+padding: 8px 12px;
+border-radius: 8px;
+background: #fff1c2;
+color: #8a5700;
+font-size: 12px;
+font-weight: 700;
+}
+
+.gps-summary {
+display: grid;
+grid-template-columns: repeat(3, minmax(0, 1fr));
+gap: 16px;
+margin-bottom: 20px;
+}
+
+.gps-card {
+padding: 20px;
+border: 1px solid #e2e8f0;
+border-radius: 12px;
+background: white;
+box-shadow: 0 3px 12px rgb(15 23 42 / 5%);
+}
+
+.gps-card span {
+display: block;
+margin-bottom: 10px;
+color: #64748b;
+}
+
+.gps-card strong {
+font-size: 28px;
+}
+
+.gps-map-layout {
+display: grid;
+grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+gap: 20px;
+align-items: start;
+}
+
+.gps-map {
+overflow: hidden;
+border: 1px solid #e2e8f0;
+border-radius: 12px;
+background: white;
+}
+
+.vehicle-map-icon {
+display: flex;
+align-items: center;
+justify-content: center;
+border-radius: 50%;
+background: white;
+box-shadow: 0 2px 8px rgb(15 23 42 / 20%);
+font-size: 23px;
+}
+
+.gps-vehicle-list {
+padding: 18px;
+border: 1px solid #e2e8f0;
+border-radius: 12px;
+background: white;
+}
+
+.gps-vehicle-list h2 {
+margin: 0 0 16px;
+font-size: 19px;
+}
+
+.gps-vehicle-item {
+padding: 14px 0;
+border-bottom: 1px solid #e2e8f0;
+}
+
+.gps-vehicle-item:last-child {
+border-bottom: none;
+}
+
+.gps-vehicle-top {
+display: flex;
+align-items: center;
+justify-content: space-between;
+gap: 8px;
+}
+
+.gps-vehicle-item p {
+margin: 8px 0 0;
+color: #64748b;
+font-size: 13px;
+overflow-wrap: anywhere;
+}
+
+.gps-status {
+padding: 5px 8px;
+border-radius: 6px;
+font-size: 11px;
+font-weight: 700;
+}
+
+.gps-status.moving {
+background: #dcfce7;
+color: #166534;
+}
+
+.gps-status.stopped {
+background: #f1f5f9;
+color: #475569;
+}
+
+@media (max-width: 850px) {
+.gps-map-layout {
+grid-template-columns: 1fr;
+}
+}
+
+@media (max-width: 600px) {
+.gps-page {
+padding: 14px;
+}
+
+.gps-heading {
+align-items: flex-start;
+flex-direction: column;
+}
+
+.gps-summary {
+grid-template-columns: 1fr;
+}
+}
