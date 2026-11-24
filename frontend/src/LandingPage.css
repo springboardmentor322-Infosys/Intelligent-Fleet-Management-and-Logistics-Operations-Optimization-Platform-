@@ -1,0 +1,979 @@
+
+/* ===== FleetFlow Public Landing Page ===== */
+
+.landing-page {
+  --landing-blue: #1763f6;
+  --landing-navy: #102b52;
+  --landing-text: #526987;
+  --landing-light: #f3f7fd;
+  --landing-border: #e3eaf4;
+
+  min-height: 100vh;
+  background: #ffffff;
+  color: var(--landing-navy);
+  font-family: inherit;
+}
+
+.landing-page * {
+  box-sizing: border-box;
+}
+
+.landing-page button,
+.landing-page a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.landing-header {
+  min-height: 76px;
+  padding: 0 7%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  background: #ffffff;
+  border-bottom: 1px solid #edf1f7;
+}
+
+.landing-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--landing-navy);
+  text-decoration: none;
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  white-space: nowrap;
+}
+
+.landing-brand > svg {
+  color: var(--landing-blue);
+}
+
+.landing-brand > span > span {
+  color: var(--landing-blue);
+}
+
+.landing-nav {
+  display: flex;
+  align-items: center;
+  gap: 36px;
+}
+
+.landing-nav a {
+  position: relative;
+  padding: 28px 0;
+  color: #3e526f;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.landing-nav a:hover {
+  color: var(--landing-blue);
+}
+
+.landing-login {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--landing-blue);
+  color: #ffffff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.landing-login:hover,
+.landing-primary:hover {
+  background: #0d50d4;
+  transform: translateY(-1px);
+}
+
+/* Hero */
+
+
+/* ===== Intelligent Fleet Technology Hero ===== */
+
+
+/* Modern intelligent fleet technology hero */
+
+/* ===== Intelligent Fleet Technology Hero ===== */
+
+.landing-hero {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  min-height: 590px;
+  padding: 70px 7%;
+  overflow: hidden;
+
+  background-color: #eaf2ff;
+  background-image:
+    linear-gradient(
+      90deg,
+      rgba(245, 249, 255, 0.97) 0%,
+      rgba(245, 249, 255, 0.90) 30%,
+      rgba(245, 249, 255, 0.60) 48%,
+      rgba(245, 249, 255, 0.12) 70%,
+      rgba(245, 249, 255, 0.02) 100%
+    ),
+    url("/images/fleet-technology.png");
+
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.landing-hero-content {
+  position: relative;
+  z-index: 2;
+  width: min(610px, 58%);
+}
+
+.landing-hero h1 {
+  max-width: 600px;
+  margin: 0;
+  color: var(--landing-navy);
+  font-size: clamp(38px, 4.1vw, 58px);
+  font-weight: 800;
+  letter-spacing: -2.2px;
+  line-height: 1.12;
+}
+
+.landing-hero h1 span {
+  color: var(--landing-blue);
+}
+
+.landing-description {
+  max-width: 480px;
+  margin: 22px 0 28px;
+  color: var(--landing-text);
+  font-size: 16px;
+  line-height: 1.8;
+}
+
+/* Mobile hero */
+@media (max-width: 700px) {
+  .landing-hero {
+    min-height: 500px;
+    padding: 48px 6%;
+    background-image:
+      linear-gradient(
+        90deg,
+        rgba(245, 249, 255, 0.93),
+        rgba(245, 249, 255, 0.78)
+      ),
+      url("/images/fleet-technology.png");
+    background-position: center;
+    background-size: cover;
+  }
+
+  .landing-hero-content {
+    width: 100%;
+  }
+
+  .landing-hero h1 {
+    font-size: clamp(36px, 9vw, 48px);
+    letter-spacing: -1.5px;
+  }
+
+  .landing-description {
+    font-size: 15px;
+  }
+}
+
+
+.landing-description {
+  max-width: 480px;
+  margin: 22px 0 28px;
+  color: var(--landing-text);
+  font-size: 16px;
+  line-height: 1.8;
+}
+
+.landing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+
+.landing-primary,
+.landing-secondary,
+.landing-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 0 23px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.landing-primary {
+  border: 1px solid var(--landing-blue);
+  background: var(--landing-blue);
+  color: #ffffff;
+  box-shadow: 0 5px 14px rgba(23, 99, 246, 0.15);
+}
+
+.landing-secondary,
+.landing-outline {
+  border: 1px solid #d4dfef;
+  background: #ffffff;
+  color: var(--landing-navy);
+}
+
+.landing-secondary:hover,
+.landing-outline:hover {
+  border-color: var(--landing-blue);
+  color: var(--landing-blue);
+}
+
+/* Feature strip */
+
+
+.landing-features {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 24px;
+  width: min(1200px, calc(100% - 64px));
+  margin: 0 auto;
+  padding: 56px 0;
+}
+
+.landing-feature {
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.landing-feature {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.landing-feature-icon {
+  display: flex;
+  flex: 0 0 52px;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+}
+
+.landing-feature-icon.blue {
+  color: #1763f6;
+  background: #e3edff;
+}
+
+.landing-feature-icon.purple {
+  color: #6656e8;
+  background: #eeebff;
+}
+
+.landing-feature-icon.teal {
+  color: #079c8d;
+  background: #e0f7f2;
+}
+
+.landing-feature-icon.orange {
+  color: #e68a23;
+  background: #fff0e1;
+}
+
+.landing-feature h3 {
+  margin: 4px 0 8px;
+  color: var(--landing-navy);
+  font-size: 15px;
+  font-weight: 750;
+}
+
+.landing-feature p {
+  max-width: 230px;
+  margin: 0;
+  color: var(--landing-text);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+/* About section */
+
+.landing-about {
+  display: grid;
+  grid-template-columns: 0.85fr 1.15fr;
+  align-items: center;
+  gap: 64px;
+  padding: 76px 7%;
+  background: #ffffff;
+}
+
+.landing-about-copy h2 {
+  max-width: 450px;
+  margin: 0 0 18px;
+  color: var(--landing-navy);
+  font-size: clamp(30px, 3vw, 40px);
+  line-height: 1.2;
+  letter-spacing: -1.2px;
+}
+
+.landing-about-copy > p:not(.landing-eyebrow) {
+  max-width: 470px;
+  margin: 0;
+  color: var(--landing-text);
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.landing-about-copy ul {
+  display: grid;
+  gap: 15px;
+  margin: 25px 0 28px;
+  padding: 0;
+  list-style: none;
+}
+
+.landing-about-copy li {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  color: #405774;
+  font-size: 14px;
+}
+
+.landing-about-copy li svg {
+  flex-shrink: 0;
+  color: var(--landing-blue);
+}
+
+.landing-about-image {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--landing-border);
+  border-radius: 18px;
+  background: #edf3fb;
+  box-shadow: 0 16px 40px rgba(25, 53, 91, 0.09);
+}
+
+.landing-about-image > img {
+  display: block;
+  width: 100%;
+  height: 340px;
+  object-fit: cover;
+}
+
+.landing-image-caption {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 17px 20px;
+  background: #ffffff;
+}
+
+.landing-image-caption > svg {
+  color: var(--landing-blue);
+}
+
+.landing-image-caption > div {
+  display: grid;
+  gap: 4px;
+}
+
+.landing-image-caption strong {
+  color: var(--landing-navy);
+  font-size: 14px;
+}
+
+.landing-image-caption span {
+  color: var(--landing-text);
+  font-size: 12px;
+}
+
+/* Call to action */
+
+.landing-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  padding: 36px 7%;
+  background: #f0f6ff;
+  border-top: 1px solid #e5eefb;
+}
+
+.landing-cta .landing-eyebrow {
+  margin-bottom: 8px;
+}
+
+.landing-cta h2 {
+  margin: 0 0 9px;
+  color: var(--landing-navy);
+  font-size: clamp(23px, 2.5vw, 31px);
+  letter-spacing: -0.7px;
+}
+
+.landing-cta p:not(.landing-eyebrow) {
+  margin: 0;
+  color: var(--landing-text);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+/* Footer */
+
+.landing-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 25px 7%;
+  background: #ffffff;
+}
+
+.landing-footer .landing-brand {
+  font-size: 21px;
+}
+
+.landing-footer p,
+.landing-footer > span {
+  margin: 0;
+  color: #71839c;
+  font-size: 12px;
+}
+
+/* Responsive layouts */
+
+@media (max-width: 1000px) {
+  .landing-header {
+    padding-right: 5%;
+    padding-left: 5%;
+  }
+
+  .landing-hero,
+  .landing-features,
+  .landing-about,
+  .landing-cta,
+  .landing-footer {
+    padding-right: 5%;
+    padding-left: 5%;
+  }
+
+  .landing-nav {
+    gap: 20px;
+  }
+
+  .landing-features {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .landing-about {
+    gap: 36px;
+  }
+}
+
+@media (max-width: 700px) {
+  .landing-header {
+    min-height: 68px;
+    flex-wrap: wrap;
+    gap: 14px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  .landing-brand {
+    font-size: 22px;
+  }
+
+  .landing-nav {
+    order: 3;
+    width: 100%;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .landing-nav a {
+    padding: 7px 0;
+    font-size: 12px;
+  }
+
+  .landing-login {
+    min-height: 40px;
+    padding: 0 15px;
+  }
+
+  
+
+@media (max-width: 700px) {
+  .landing-hero {
+    min-height: 500px;
+    padding: 48px 6%;
+    background-image:
+      linear-gradient(
+        90deg,
+        rgba(245, 249, 255, 0.97),
+        rgba(245, 249, 255, 0.86)
+      ),
+      url("/images/fleet-technology.png");
+    background-position: center;
+    background-size: cover;
+  }
+
+  .landing-hero-content {
+    width: 100%;
+  }
+}
+
+
+
+  .landing-hero-content {
+    width: 100%;
+  }
+
+  .landing-hero h1 {
+    font-size: clamp(36px, 9vw, 48px);
+    letter-spacing: -1.5px;
+  }
+
+  .landing-description {
+    font-size: 15px;
+  }
+
+  .landing-features {
+    grid-template-columns: 1fr;
+    gap: 26px;
+    padding-top: 32px;
+    padding-bottom: 32px;
+  }
+
+  .landing-feature p {
+    max-width: 320px;
+  }
+
+  .landing-about {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    padding-top: 55px;
+    padding-bottom: 55px;
+  }
+
+  .landing-about-image > img {
+    height: 250px;
+  }
+
+  .landing-cta {
+    align-items: flex-start;
+    flex-direction: column;
+    padding-top: 32px;
+    padding-bottom: 32px;
+  }
+
+  .landing-footer {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-page *,
+  .landing-page *::before,
+  .landing-page *::after {
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}
+
+/* Landing page feature layout */
+.landing-page .landing-features {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 28px;
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 56px 40px;
+}
+
+.landing-page .landing-feature {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.landing-page .landing-feature > div:last-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.landing-page .landing-feature h3 {
+  margin: 4px 0 8px;
+  overflow-wrap: anywhere;
+  font-size: 15px;
+}
+
+.landing-page .landing-feature p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+/* Two columns on tablets */
+@media (max-width: 900px) {
+  .landing-page .landing-features {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 40px 28px;
+  }
+}
+
+/* One column on phones */
+@media (max-width: 600px) {
+  .landing-page .landing-features {
+    grid-template-columns: 1fr;
+    padding: 32px 22px;
+    gap: 26px;
+  }
+}
+
+
+/* Fix the feature section rendered by App.jsx */
+.landing-page .landing-features:has(.landing-feature-grid) {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 56px clamp(24px, 6vw, 80px);
+}
+
+.landing-page .landing-features .landing-section-heading {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto 36px;
+  text-align: center;
+}
+
+.landing-page .landing-features .landing-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.landing-page .landing-features .landing-feature-card {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 28px;
+  border: 1px solid #e1e9f5;
+  border-radius: 20px;
+  background: #fff;
+}
+
+.landing-page .landing-features .landing-feature-card h3,
+.landing-page .landing-features .landing-feature-card p {
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+.landing-page .landing-features .landing-feature-card h3 {
+  line-height: 1.4;
+  margin: 18px 0 10px;
+}
+
+.landing-page .landing-features .landing-feature-card p {
+  font-size: 15px;
+  line-height: 1.7;
+  margin: 0;
+}
+
+@media (max-width: 760px) {
+  .landing-page .landing-features .landing-feature-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* ===== Fleet technology hero layout ===== */
+
+.landing-hero {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 35px;
+  min-height: 590px;
+  padding: 65px 7%;
+  overflow: hidden;
+
+  background-color: #eaf2ff;
+  background-image:
+    linear-gradient(
+      90deg,
+      rgba(245, 249, 255, 0.98) 0%,
+      rgba(245, 249, 255, 0.92) 32%,
+      rgba(245, 249, 255, 0.60) 51%,
+      rgba(245, 249, 255, 0.08) 78%,
+      rgba(245, 249, 255, 0.02) 100%
+    ),
+    url("/images/fleet-technology.png");
+
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* Left-side heading and buttons */
+
+.landing-hero-content {
+  position: relative;
+  z-index: 2;
+  flex: 1 1 55%;
+  width: auto;
+  max-width: 620px;
+  min-width: 0;
+}
+
+/* Right-side floating operations card */
+
+.landing-visual {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex: 0 1 390px;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+  max-width: 390px;
+  padding: 25px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 25px;
+
+  background: rgba(16, 43, 82, 0.88);
+  color: #ffffff;
+
+  box-shadow: 0 20px 55px rgba(10, 35, 75, 0.20);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.landing-visual-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #e1edff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+}
+
+.landing-stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 23px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.landing-stat-card > span {
+  color: #d8e5fa;
+  font-size: 13px;
+}
+
+.landing-stat-card > strong {
+  font-size: 21px;
+  line-height: 1.35;
+}
+
+.landing-stat-card > p,
+.landing-route-card p {
+  margin: 0;
+  color: #d4e2f8;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.landing-route-card {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 17px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 17px;
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.landing-route-icon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.landing-route-card > div:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+}
+
+.landing-route-card strong {
+  font-size: 14px;
+}
+
+.landing-route-card > svg {
+  flex-shrink: 0;
+  color: #55e1b0;
+}
+
+/* Responsive layout */
+
+@media (max-width: 900px) {
+  .landing-hero {
+    gap: 22px;
+    padding-right: 5%;
+    padding-left: 5%;
+  }
+
+  .landing-visual {
+    flex-basis: 330px;
+    max-width: 330px;
+    padding: 19px;
+  }
+
+  .landing-stat-card {
+    padding: 18px;
+  }
+
+  .landing-stat-card > strong {
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 700px) {
+  .landing-hero {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 35px;
+    min-height: auto;
+    padding: 50px 6%;
+    background-image:
+      linear-gradient(
+        rgba(245, 249, 255, 0.90),
+        rgba(245, 249, 255, 0.82)
+      ),
+      url("/images/fleet-technology.png");
+    background-position: center;
+    background-size: cover;
+  }
+
+  .landing-hero-content {
+    flex: none;
+    width: 100%;
+    max-width: none;
+  }
+
+  .landing-visual {
+    flex: none;
+    width: 100%;
+    max-width: 420px;
+    align-self: center;
+  }
+}
+
+
+/* Compact fleet operations card */
+.landing-visual {
+  flex: 0 1 330px;
+  width: 100%;
+  max-width: 330px;
+  padding: 20px;
+  gap: 13px;
+  border-radius: 22px;
+  background: rgba(16, 43, 82, 0.84);
+  box-shadow: 0 16px 38px rgba(10, 35, 75, 0.16);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.landing-stat-card {
+  gap: 10px;
+  padding: 18px;
+  border-radius: 15px;
+}
+
+.landing-stat-card > strong {
+  font-size: 18px;
+}
+
+.landing-route-card {
+  gap: 10px;
+  padding: 13px;
+  border-radius: 14px;
+}
+
+.landing-route-icon {
+  width: 38px;
+  height: 38px;
+}
+
+/* Let more of the technology image show through */
+.landing-hero {
+  background-image:
+    linear-gradient(
+      90deg,
+      rgba(245, 249, 255, 0.98) 0%,
+      rgba(245, 249, 255, 0.91) 28%,
+      rgba(245, 249, 255, 0.58) 46%,
+      rgba(245, 249, 255, 0.08) 70%,
+      transparent 100%
+    ),
+    url("/images/fleet-technology.png");
+
+  background-position: center;
+  background-size: cover;
+}
+
+@media (max-width: 900px) {
+  .landing-visual {
+    flex-basis: 290px;
+    max-width: 290px;
+    padding: 16px;
+  }
+}
+
+@media (max-width: 700px) {
+  .landing-visual {
+    flex: none;
+    width: 100%;
+    max-width: 380px;
+    padding: 18px;
+  }
+}
