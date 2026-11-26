@@ -1,0 +1,7 @@
+node_modules/
+dist/
+__pycache__/
+*.pyc
+.venv/
+venv/
+backend/data/fleet.json
