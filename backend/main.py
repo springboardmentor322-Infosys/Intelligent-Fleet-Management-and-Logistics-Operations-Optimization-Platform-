@@ -25,7 +25,8 @@ from models import (
     FuelLog,
     VehicleTracking,
     Notification,
-    ShipmentStatusHistory
+    ShipmentStatusHistory,
+    MaintenanceHistory
 )
 from database import engine, Base
 from fastapi import HTTPException, Depends
@@ -58,12 +59,16 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        *[
+            origin.strip()
+            for origin in os.getenv("CORS_ORIGINS", "").split(",")
+            if origin.strip()
+        ],
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login")
 
 
@@ -231,6 +236,7 @@ def create_vehicle(vehicle_data: dict,db: Session = Depends(get_db),current_user
             detail="Could not create vehicle. Check the submitted fields."
         ) from exc
 
+
 class DriverCreate(BaseModel):
     name: str
     phone_number: str
@@ -326,7 +332,62 @@ def get_drivers(
         for driver in drivers
     ]
 
+@app.get("/api/assignments/availability")
+def get_assignment_availability(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(
+        require_role("Admin", "Manager", "Dispatcher")
+    )
+):
+    active_statuses = ["Planned", "In Progress", "Delayed"]
 
+    active_trips = db.query(models.Trip).filter(
+        models.Trip.status.in_(active_statuses)
+    ).all()
+
+    busy_driver_ids = {
+        trip.driver_id for trip in active_trips
+        if trip.driver_id is not None
+    }
+
+    busy_vehicle_ids = {
+        trip.vehicle_id for trip in active_trips
+        if trip.vehicle_id is not None
+    }
+
+    unavailable_statuses = {
+        "inactive", "unavailable", "maintenance",
+        "busy", "assigned", "on leave"
+    }
+
+    drivers = db.query(models.Driver).all()
+    vehicles = db.query(models.Vehicle).all()
+
+    return {
+        "drivers": [
+            {
+                "id": driver.id,
+                "name": driver.name,
+                "status": driver.status
+            }
+            for driver in drivers
+            if driver.id not in busy_driver_ids
+            and (driver.status or "").strip().lower()
+            not in unavailable_statuses
+        ],
+        "vehicles": [
+            {
+                "id": vehicle.id,
+                "vehicle_number": vehicle.vehicle_number,
+                "model": vehicle.model,
+                "status": vehicle.status
+            }
+            for vehicle in vehicles
+            if vehicle.id not in busy_vehicle_ids
+            and (vehicle.status or "").strip().lower()
+            not in unavailable_statuses
+        ]
+    }
 # ==========================================
 # DRIVER-SPECIFIC APIs
 # ==========================================
@@ -442,6 +503,10 @@ def get_my_trips(
 class AssignmentCreate(BaseModel):
     vehicle_id: int
     driver_id: int
+
+class TripAssignmentUpdate(BaseModel):
+    driver_id: int
+    vehicle_id: int    
 
 
 @app.post("/api/assignments")
@@ -561,41 +626,86 @@ def create_trip(
             detail="Driver not found"
         )
 
+        # Validate driver and vehicle status
+    unavailable_statuses = {
+        "inactive",
+        "unavailable",
+        "maintenance",
+        "busy",
+        "assigned",
+        "on leave"
+    }
+
+    if (vehicle.status or "").strip().lower() in unavailable_statuses:
+        raise HTTPException(
+            status_code=409,
+            detail="Vehicle is currently unavailable"
+        )
+
+    if (driver.status or "").strip().lower() in unavailable_statuses:
+        raise HTTPException(
+            status_code=409,
+            detail="Driver is currently unavailable"
+        )
+
     # Validate trip schedule
     if scheduled_start and scheduled_end:
-
         if scheduled_end <= scheduled_start:
             raise HTTPException(
                 status_code=400,
                 detail="Trip end time must be after start time"
             )
 
-        # Check driver conflict
-        driver_conflict = db.query(models.Trip).filter(
-            models.Trip.driver_id == driver_id,
-            models.Trip.scheduled_start < scheduled_end,
-            models.Trip.scheduled_end > scheduled_start
-        ).first()
+    # Check existing active trips for driver and vehicle
+    active_statuses = ["Planned", "In Progress", "Delayed"]
 
-        if driver_conflict:
-            raise HTTPException(
-                status_code=409,
-                detail="Driver already has another trip during this time"
+    existing_trips = db.query(models.Trip).filter(
+        models.Trip.status.in_(active_statuses),
+        (
+            (models.Trip.driver_id == driver_id) |
+            (models.Trip.vehicle_id == vehicle_id)
+        )
+    ).all()
+
+    for existing_trip in existing_trips:
+
+        # If either trip has no schedule, treat the resource as occupied
+        if (
+            not scheduled_start
+            or not scheduled_end
+            or not existing_trip.scheduled_start
+            or not existing_trip.scheduled_end
+        ):
+            if existing_trip.driver_id == driver_id:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Driver already has an active or scheduled trip"
+                )
+
+            if existing_trip.vehicle_id == vehicle_id:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Vehicle already has an active or scheduled trip"
+                )
+
+        # Check overlapping schedules
+        else:
+            overlaps = (
+                existing_trip.scheduled_start < scheduled_end
+                and existing_trip.scheduled_end > scheduled_start
             )
 
-        # Check vehicle conflict
-        vehicle_conflict = db.query(models.Trip).filter(
-            models.Trip.vehicle_id == vehicle_id,
-            models.Trip.scheduled_start < scheduled_end,
-            models.Trip.scheduled_end > scheduled_start
-        ).first()
+            if overlaps and existing_trip.driver_id == driver_id:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Driver already has another trip during this time"
+                )
 
-        if vehicle_conflict:
-            raise HTTPException(
-                status_code=409,
-                detail="Vehicle already has another trip during this time"
-            )
-
+            if overlaps and existing_trip.vehicle_id == vehicle_id:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Vehicle already has another trip during this time"
+                )
     # Create trip
     trip = models.Trip(
         trip_name=trip_name,
@@ -855,6 +965,183 @@ async def vehicle_tracking(
     except WebSocketDisconnect:
         print(f"Vehicle {vehicle_id} tracking disconnected")
 
+
+@app.put("/api/trips/{trip_id}/assign")
+def assign_driver_vehicle_to_trip(
+    trip_id: int,
+    assignment: TripAssignmentUpdate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(
+        require_role("Admin", "Manager", "Dispatcher")
+    )
+):
+    trip = db.query(models.Trip).filter(
+        models.Trip.id == trip_id
+    ).first()
+
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    if trip.status != "Planned":
+        raise HTTPException(
+            status_code=400,
+            detail="Only Planned trips can be assigned"
+        )
+
+    driver = db.query(models.Driver).filter(
+        models.Driver.id == assignment.driver_id
+    ).first()
+
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver not found")
+
+    if (driver.status or "").strip().lower() in [
+        "unavailable", "inactive", "suspended", "off duty"
+    ]:
+        raise HTTPException(
+            status_code=400,
+            detail="Driver is not available"
+        )
+
+    vehicle = db.query(models.Vehicle).filter(
+        models.Vehicle.id == assignment.vehicle_id
+    ).first()
+
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+
+    if (vehicle.status or "").strip().lower() in [
+        "unavailable", "maintenance", "under maintenance",
+        "out of service", "inactive"
+    ]:
+        raise HTTPException(
+            status_code=400,
+            detail="Vehicle is not available"
+        )
+
+    ongoing_maintenance = db.query(models.Maintenance).filter(
+        models.Maintenance.vehicle_id == vehicle.id,
+        models.Maintenance.status == "In Progress"
+    ).first()
+
+    if ongoing_maintenance:
+        raise HTTPException(
+            status_code=400,
+            detail="Vehicle has ongoing maintenance"
+        )
+
+    active_trips = db.query(models.Trip).filter(
+        models.Trip.id != trip_id,
+        models.Trip.status.in_([
+            "Planned", "In Progress", "Delayed"
+        ])
+    ).all()
+
+    for other_trip in active_trips:
+        same_driver = other_trip.driver_id == driver.id
+        same_vehicle = other_trip.vehicle_id == vehicle.id
+
+        if not same_driver and not same_vehicle:
+            continue
+
+        if (
+            not trip.scheduled_start
+            or not trip.scheduled_end
+            or not other_trip.scheduled_start
+            or not other_trip.scheduled_end
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Another active trip has an incomplete schedule for this driver or vehicle"
+            )
+
+        if (
+            trip.scheduled_start < other_trip.scheduled_end
+            and trip.scheduled_end > other_trip.scheduled_start
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Driver or vehicle is already assigned to another trip during this time"
+            )
+
+    # Update the trip assignment
+    # Store previous assignment IDs
+    old_driver_id = trip.driver_id
+    old_vehicle_id = trip.vehicle_id
+
+    # Update trip assignment
+    trip.driver_id = driver.id
+    trip.vehicle_id = vehicle.id
+
+    # Release previous driver if no other active trips exist
+    if old_driver_id != driver.id:
+        other_driver_trips = db.query(models.Trip).filter(
+            models.Trip.driver_id == old_driver_id,
+            models.Trip.id != trip.id,
+            models.Trip.status.in_(["Planned", "In Progress", "Delayed"])
+        ).count()
+
+        if other_driver_trips == 0:
+             old_driver = db.query(models.Driver).filter(
+                 models.Driver.id == old_driver_id
+             ).first()
+
+             if old_driver:
+                 old_driver.status = "Available"
+
+     # Release previous vehicle if no other active trips exist
+    if old_vehicle_id != vehicle.id:
+        other_vehicle_trips = db.query(models.Trip).filter(
+            models.Trip.vehicle_id == old_vehicle_id,
+            models.Trip.id != trip.id,
+            models.Trip.status.in_(["Planned", "In Progress", "Delayed"])
+        ).count()
+
+        if other_vehicle_trips == 0:
+            old_vehicle = db.query(models.Vehicle).filter(
+                models.Vehicle.id == old_vehicle_id
+            ).first()
+
+            if old_vehicle:
+                old_vehicle.status = "Available"
+
+    # Update new driver and vehicle statuses
+    driver.status = "On Trip"
+    vehicle.status = "Assigned"
+    
+
+    # Create a permanent assignment history record
+    history = models.AssignmentHistory(
+        trip_id=trip.id,
+        driver_id=driver.id,
+        vehicle_id=vehicle.id,
+        assignment_status="Assigned"
+    )
+
+    db.add(history)
+
+    try:
+        db.commit()
+        db.refresh(trip)
+        db.refresh(history)
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to save assignment and assignment history"
+        )
+
+    return {
+        "message": "Driver and vehicle assigned successfully",
+        "trip_id": trip.id,
+        "driver_id": trip.driver_id,
+        "vehicle_id": trip.vehicle_id,
+        "history_id": history.id,
+        "status": trip.status
+    }
+
+
+
 @app.patch("/api/trips/{trip_id}/status")
 def update_trip_status(
     trip_id: int,
@@ -911,10 +1198,47 @@ def update_trip_status(
     elif role not in ["Admin", "Manager", "Dispatcher"]:
         raise HTTPException(
             status_code=403,
-            detail="You do not have permission to update trip status"
+            detail="You do not have permission to update this resource"
         )
 
+    # Update trip status
     trip.status = status
+
+    # Release driver and vehicle after trip completion
+    if status == "Completed":
+
+        other_driver_trips = db.query(models.Trip).filter(
+            models.Trip.driver_id == trip.driver_id,
+            models.Trip.id != trip.id,
+            models.Trip.status.in_([
+                "Planned", "In Progress", "Delayed"
+            ])
+        ).count()
+
+        if other_driver_trips == 0:
+            driver = db.query(models.Driver).filter(
+                models.Driver.id == trip.driver_id
+            ).first()
+
+            if driver and driver.status == "On Trip":
+                driver.status = "Available"
+
+        other_vehicle_trips = db.query(models.Trip).filter(
+            models.Trip.vehicle_id == trip.vehicle_id,
+            models.Trip.id != trip.id,
+            models.Trip.status.in_([
+                "Planned", "In Progress", "Delayed"
+            ])
+        ).count()
+
+        if other_vehicle_trips == 0:
+            vehicle = db.query(models.Vehicle).filter(
+                models.Vehicle.id == trip.vehicle_id
+            ).first()
+
+            if vehicle and vehicle.status == "Assigned":
+                vehicle.status = "Available"
+
     db.commit()
     db.refresh(trip)
 
@@ -924,6 +1248,151 @@ def update_trip_status(
         "status": trip.status
     }
 
+@app.post("/api/trips/{trip_id}/assign")
+def assign_trip(
+    trip_id: int,
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(
+        require_role("Admin", "Manager", "Dispatcher")
+    )
+):
+    driver_id = payload.get("driver_id")
+    vehicle_id = payload.get("vehicle_id")
+
+    if not driver_id or not vehicle_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Driver ID and Vehicle ID are required"
+        )
+
+    trip = db.query(models.Trip).filter(
+        models.Trip.id == trip_id
+    ).first()
+
+    if not trip:
+        raise HTTPException(
+            status_code=404,
+            detail="Trip not found"
+        )
+
+    if trip.status in ["Completed", "Cancelled"]:
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot assign a completed or cancelled trip"
+        )
+
+    driver = db.query(models.Driver).filter(
+        models.Driver.id == driver_id
+    ).first()
+
+    if not driver:
+        raise HTTPException(
+            status_code=404,
+            detail="Driver not found"
+        )
+
+    vehicle = db.query(models.Vehicle).filter(
+        models.Vehicle.id == vehicle_id
+    ).first()
+
+    if not vehicle:
+        raise HTTPException(
+            status_code=404,
+            detail="Vehicle not found"
+        )
+
+    unavailable_statuses = {
+        "inactive", "unavailable", "maintenance",
+        "busy", "assigned", "on leave"
+    }
+
+    active_statuses = ["Planned", "In Progress", "Delayed"]
+
+    if (driver.status or "").strip().lower() in unavailable_statuses:
+        raise HTTPException(
+            status_code=409,
+            detail="Selected driver is unavailable"
+        )
+
+    if (vehicle.status or "").strip().lower() in unavailable_statuses:
+        raise HTTPException(
+            status_code=409,
+            detail="Selected vehicle is unavailable or under maintenance"
+        )
+
+    conflicting_trip = db.query(models.Trip).filter(
+        models.Trip.id != trip_id,
+        models.Trip.status.in_(active_statuses),
+        (
+            (models.Trip.driver_id == driver_id) |
+            (models.Trip.vehicle_id == vehicle_id)
+        )
+    ).first()
+
+    if conflicting_trip:
+        raise HTTPException(
+            status_code=409,
+            detail="Driver or vehicle is already assigned to another active trip"
+        )
+
+    old_driver_id = trip.driver_id
+    old_vehicle_id = trip.vehicle_id
+
+    trip.driver_id = driver_id
+    trip.vehicle_id = vehicle_id
+
+    driver.status = "On Trip"
+    vehicle.status = "Assigned"
+
+    history = models.AssignmentHistory(
+        trip_id=trip.id,
+        driver_id=driver_id,
+        vehicle_id=vehicle_id,
+        assignment_status="Assigned"
+    )
+
+    db.add(history)
+
+    db.commit()
+    db.refresh(trip)
+
+    return {
+        "message": "Driver and vehicle assigned successfully",
+        "trip_id": trip.id,
+        "driver_id": trip.driver_id,
+        "vehicle_id": trip.vehicle_id,
+        "assignment_status": history.assignment_status
+    }
+
+@app.get("/api/assignments/history")
+def get_assignment_history(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(
+        require_role("Admin", "Manager", "Dispatcher")
+    )
+):
+    records = (
+        db.query(models.AssignmentHistory)
+        .order_by(models.AssignmentHistory.assignment_date.desc())
+        .all()
+    )
+
+    return [
+        {
+            "id": item.id,
+            "driver_name": item.driver.name,
+            "vehicle_number": item.vehicle.vehicle_number,
+            "trip_name": item.trip.trip_name,
+            "origin": item.trip.origin,
+            "destination": item.trip.destination,
+            "assignment_date": item.assignment_date,
+            "assignment_status": item.assignment_status,
+            "trip_status": item.trip.status
+        }
+        for item in records
+    ]
+ 
 @app.get("/api/users")
 def get_users(
     db: Session = Depends(get_db),
@@ -986,6 +1455,104 @@ def register_user(
     }
 
 
+
+# USER REGISTRATION
+
+class RegisterRequest(BaseModel):
+    username: str
+    email: str
+    password: str
+    name: str
+    phone_number: str
+    license_number: str
+
+
+@app.post("/api/public/register")
+def public_register_user(
+    user_data: RegisterRequest,
+    db: Session = Depends(get_db)
+):
+    username = user_data.username.strip()
+    email = user_data.email.strip().lower()
+    password = user_data.password
+    name = user_data.name.strip()
+    phone_number = user_data.phone_number.strip()
+    license_number = user_data.license_number.strip()
+
+    if not all([
+        username, email, password,
+        name, phone_number, license_number
+    ]):
+        raise HTTPException(
+            status_code=400,
+            detail="All fields are required"
+        )
+
+    if len(password) < 8:
+        raise HTTPException(
+            status_code=400,
+            detail="Password must contain at least 8 characters"
+        )
+
+    existing_user = db.query(User).filter(
+        (User.username == username) |
+        (User.email == email)
+    ).first()
+
+    if existing_user:
+        raise HTTPException(
+            status_code=400,
+            detail="Username or email already registered"
+        )
+
+    existing_driver = db.query(models.Driver).filter(
+        (models.Driver.phone_number == phone_number) |
+        (models.Driver.license_number == license_number)
+    ).first()
+
+    if existing_driver:
+        raise HTTPException(
+            status_code=400,
+            detail="Phone number or license number already exists"
+        )
+
+    try:
+        new_user = User(
+            username=username,
+            email=email,
+            hashed_password=hash_password(password),
+            role="Driver"
+        )
+
+        db.add(new_user)
+        db.flush()
+
+        new_driver = models.Driver(
+            name=name,
+            phone_number=phone_number,
+            license_number=license_number,
+            status="Available",
+            user_id=new_user.id
+        )
+
+        db.add(new_driver)
+        db.commit()
+
+        db.refresh(new_user)
+        db.refresh(new_driver)
+
+    except Exception:
+        db.rollback()
+        raise
+
+    return {
+        "message": "Registration successful",
+        "username": new_user.username,
+        "role": new_user.role,
+        "driver_id": new_driver.id,
+        "driver_name": new_driver.name
+    }
+
 # USER LOGIN
 @app.post("/api/login")
 def login_user(
@@ -1029,36 +1596,57 @@ def admin_dashboard(
         "role": current_user["role"]
     }
 
+
+# MAINTENANCE CREATE REQUEST MODEL
+class MaintenanceCreate(BaseModel):
+    vehicle_id: int
+    service_type: str
+    description: str = ""
+    service_date: date
+    due_date: date = None
+    service_centre: str = None
+    estimated_cost: float = None
+
+
 # CREATE MAINTENANCE RECORD
 @app.post("/api/maintenance")
 def create_maintenance(
-    vehicle_id: int,
-    service_type: str,
-    description: str,
-    service_date: date,
-    due_date: date,
+    payload: MaintenanceCreate,
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_role("Admin", "Manager"))
 ):
     vehicle = db.query(Vehicle).filter(
-        Vehicle.id == vehicle_id
+        Vehicle.id == payload.vehicle_id
     ).first()
 
     if not vehicle:
-        raise HTTPException(status_code=404, detail="Vehicle not found")
+        raise HTTPException(
+            status_code=404,
+            detail="Vehicle not found"
+        )
 
-    if due_date < service_date:
+    due_date = payload.due_date or payload.service_date
+
+    if due_date < payload.service_date:
         raise HTTPException(
             status_code=400,
             detail="Due date cannot be before service date"
         )
 
+    if payload.estimated_cost is not None and payload.estimated_cost < 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Estimated cost cannot be negative"
+        )
+
     maintenance = Maintenance(
-        vehicle_id=vehicle_id,
-        service_type=service_type,
-        description=description,
-        service_date=service_date,
+        vehicle_id=payload.vehicle_id,
+        service_type=payload.service_type,
+        description=payload.description,
+        service_date=payload.service_date,
         due_date=due_date,
+        service_centre=payload.service_centre,
+        estimated_cost=payload.estimated_cost,
         status="Scheduled"
     )
 
@@ -1071,10 +1659,13 @@ def create_maintenance(
         "maintenance_id": maintenance.id,
         "vehicle_id": maintenance.vehicle_id,
         "service_type": maintenance.service_type,
+        "service_centre": maintenance.service_centre,
+        "estimated_cost": maintenance.estimated_cost,
         "status": maintenance.status
     }
 
 
+# GET ALL MAINTENANCE RECORDS
 @app.get("/api/maintenance")
 def get_maintenance_records(
     db: Session = Depends(get_db),
@@ -1088,16 +1679,20 @@ def get_maintenance_records(
         {
             "id": record.id,
             "vehicle_id": record.vehicle_id,
+            "vehicle_number": record.vehicle.vehicle_number,
             "service_type": record.service_type,
             "description": record.description,
             "service_date": record.service_date,
             "due_date": record.due_date,
+            "service_centre": record.service_centre,
+            "estimated_cost": record.estimated_cost,
             "status": record.status
         }
         for record in records
     ]
 
 
+# GET UPCOMING MAINTENANCE
 @app.get("/api/maintenance/upcoming")
 def get_upcoming_maintenance(
     db: Session = Depends(get_db),
@@ -1109,25 +1704,90 @@ def get_upcoming_maintenance(
 
     records = db.query(Maintenance).filter(
         Maintenance.due_date >= today,
-        Maintenance.status != "Completed"
+        Maintenance.status.notin_(["Completed", "Cancelled"])
     ).order_by(Maintenance.due_date).all()
 
     return [
         {
             "id": record.id,
             "vehicle_id": record.vehicle_id,
+            "vehicle_number": record.vehicle.vehicle_number,
             "service_type": record.service_type,
             "due_date": record.due_date,
+            "service_centre": record.service_centre,
+            "estimated_cost": record.estimated_cost,
             "status": record.status
         }
         for record in records
     ]
 
+# ==========================================
+# MAINTENANCE ALERTS API
+# ==========================================
 
+@app.get("/api/maintenance/alerts")
+def get_maintenance_alerts(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(
+        require_role("Admin", "Manager", "Dispatcher")
+    )
+):
+    today = date.today()
+
+    records = db.query(Maintenance).filter(
+        Maintenance.status != "Cancelled"
+    ).order_by(
+        Maintenance.due_date.asc()
+    ).all()
+
+    alerts = []
+
+    for record in records:
+
+        if record.status == "Completed":
+            alert_status = "Resolved"
+        elif record.due_date < today:
+            alert_status = "Overdue"
+        else:
+            alert_status = "Upcoming"
+
+        alerts.append({
+            "id": record.id,
+            "vehicle_id": record.vehicle_id,
+            "vehicle_number": record.vehicle.vehicle_number,
+            "category": record.service_type,
+            "description": record.description,
+            "service_date": record.service_date,
+            "due_date": record.due_date,
+            "maintenance_status": record.status,
+            "alert_status": alert_status,
+            "estimated_cost": record.estimated_cost
+        })
+
+    return {
+        "today": today,
+        "total_alerts": len(alerts),
+        "upcoming": sum(
+            1 for item in alerts
+            if item["alert_status"] == "Upcoming"
+        ),
+        "overdue": sum(
+            1 for item in alerts
+            if item["alert_status"] == "Overdue"
+        ),
+        "resolved": sum(
+            1 for item in alerts
+            if item["alert_status"] == "Resolved"
+        ),
+        "alerts": alerts
+    }
+
+# UPDATE MAINTENANCE STATUS
 @app.patch("/api/maintenance/{maintenance_id}/status")
 def update_maintenance_status(
     maintenance_id: int,
     status: str,
+    operational_confirmed: bool = False,
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_role("Admin", "Manager"))
 ):
@@ -1141,7 +1801,12 @@ def update_maintenance_status(
             detail="Maintenance record not found"
         )
 
-    allowed_statuses = ["Scheduled", "In Progress", "Completed"]
+    allowed_statuses = [
+        "Scheduled",
+        "In Progress",
+        "Completed",
+        "Cancelled"
+    ]
 
     if status not in allowed_statuses:
         raise HTTPException(
@@ -1149,15 +1814,114 @@ def update_maintenance_status(
             detail="Invalid maintenance status"
         )
 
+    vehicle = db.query(Vehicle).filter(
+        Vehicle.id == maintenance.vehicle_id
+    ).first()
+
+    if not vehicle:
+        raise HTTPException(
+            status_code=404,
+            detail="Vehicle not found"
+        )
+
+    # Check active trips before starting maintenance
+    if status == "In Progress":
+
+        active_trip = db.query(Trip).filter(
+            Trip.vehicle_id == vehicle.id,
+            Trip.status.in_([
+                "Planned",
+                "In Progress",
+                "Delayed"
+            ])
+        ).first()
+
+        if active_trip:
+            raise HTTPException(
+                status_code=400,
+                detail="Vehicle is assigned to an active trip. Complete or reassign the trip first."
+            )
+
+        maintenance.operational_confirmed = False
+        vehicle.status = "Maintenance"
+
+    # Complete maintenance
+    elif status == "Completed":
+
+        if not operational_confirmed:
+            maintenance.operational_confirmed = False
+            vehicle.status = "Maintenance"
+
+        else:
+            other_maintenance = db.query(Maintenance).filter(
+                Maintenance.vehicle_id == vehicle.id,
+                Maintenance.id != maintenance.id,
+                Maintenance.status == "In Progress"
+            ).first()
+
+            if other_maintenance:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Another maintenance is still in progress for this vehicle."
+                )
+
+            active_trip = db.query(Trip).filter(
+                Trip.vehicle_id == vehicle.id,
+                Trip.status.in_([
+                    "Planned",
+                    "In Progress",
+                    "Delayed"
+                ])
+            ).first()
+
+            if active_trip:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Vehicle has an active trip and cannot be marked operational."
+                )
+
+            maintenance.operational_confirmed = True
+
+            if vehicle.status == "Maintenance":
+                vehicle.status = "Available"
+
+    # Cancel maintenance
+    elif status == "Cancelled":
+
+        maintenance.operational_confirmed = False
+
+        # If servicing had already started, keep the vehicle
+        # unavailable until it is confirmed operational.
+        if maintenance.status == "In Progress":
+            vehicle.status = "Maintenance"
+
+    # Scheduled status
+    elif status == "Scheduled":
+        maintenance.operational_confirmed = False
+
     maintenance.status = status
-    db.commit()
-    db.refresh(maintenance)
+
+    try:
+        db.commit()
+        db.refresh(maintenance)
+        db.refresh(vehicle)
+
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to update maintenance status"
+        )
 
     return {
         "message": "Maintenance status updated successfully",
         "maintenance_id": maintenance.id,
-        "status": maintenance.status
+        "status": maintenance.status,
+        "vehicle_id": vehicle.id,
+        "vehicle_status": vehicle.status,
+        "operational_confirmed": maintenance.operational_confirmed
     }
+
 # Create Shipment
 @app.post("/api/shipments")
 def create_shipment(
@@ -1446,6 +2210,8 @@ def update_shipment_status(
         "status": shipment.status
     }
 # Create Fuel Log
+
+# Create Fuel Log
 @app.post("/api/fuel")
 def create_fuel_log(
     vehicle_id: int,
@@ -1492,37 +2258,135 @@ def create_fuel_log(
     }
 
 
+# Get Fuel Logs with Filters
 @app.get("/api/fuel")
 def get_fuel_logs(
+    vehicle_id: int | None = None,
+    fuel_type: str | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_role("Admin", "Manager"))
 ):
-    return db.query(FuelLog).order_by(
-        FuelLog.fuel_date.desc()
-    ).all()
+    query = db.query(FuelLog)
+
+    if vehicle_id is not None:
+        query = query.filter(FuelLog.vehicle_id == vehicle_id)
+
+    if fuel_type:
+        query = query.filter(FuelLog.fuel_type == fuel_type)
+
+    if start_date:
+        query = query.filter(FuelLog.fuel_date >= start_date)
+
+    if end_date:
+        query = query.filter(FuelLog.fuel_date <= end_date)
+
+    return query.order_by(FuelLog.fuel_date.desc()).all()
 
 
+# Fleet Fuel Analytics with Filters and Vehicle Breakdown
 @app.get("/api/fuel/analytics")
 def get_fuel_analytics(
+    vehicle_id: int | None = None,
+    fuel_type: str | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_role("Admin", "Manager"))
 ):
-    result = db.query(
-        func.coalesce(func.sum(FuelLog.quantity), 0),
-        func.coalesce(func.sum(FuelLog.cost), 0),
-        func.count(FuelLog.id)
-    ).first()
+    query = db.query(FuelLog)
+
+    if vehicle_id is not None:
+        query = query.filter(FuelLog.vehicle_id == vehicle_id)
+
+    if fuel_type:
+        query = query.filter(FuelLog.fuel_type == fuel_type)
+
+    if start_date:
+        query = query.filter(FuelLog.fuel_date >= start_date)
+
+    if end_date:
+        query = query.filter(FuelLog.fuel_date <= end_date)
+
+    logs = query.order_by(
+        FuelLog.vehicle_id,
+        FuelLog.fuel_date,
+        FuelLog.id
+    ).all()
+
+    total_quantity = sum(float(log.quantity or 0) for log in logs)
+    total_cost = sum(float(log.cost or 0) for log in logs)
+
+    vehicle_data = {}
+
+    for log in logs:
+        vehicle_id_value = log.vehicle_id
+
+        if vehicle_id_value not in vehicle_data:
+            vehicle = db.query(Vehicle).filter(
+                Vehicle.id == vehicle_id_value
+            ).first()
+
+            vehicle_data[vehicle_id_value] = {
+                "vehicle_id": vehicle_id_value,
+                "vehicle_number": (
+                    vehicle.vehicle_number if vehicle else None
+                ),
+                "vehicle_type": (
+                    vehicle.vehicle_type if vehicle else None
+                ),
+                "total_fuel_quantity": 0,
+                "total_fuel_cost": 0,
+                "total_fuel_records": 0,
+                "total_distance": 0,
+                "fuel_efficiency": None,
+                "previous_odometer": None
+            }
+
+        item = vehicle_data[vehicle_id_value]
+
+        item["total_fuel_quantity"] += float(log.quantity or 0)
+        item["total_fuel_cost"] += float(log.cost or 0)
+        item["total_fuel_records"] += 1
+
+        current_odometer = float(log.odometer_reading or 0)
+
+        if item["previous_odometer"] is not None:
+            distance = current_odometer - item["previous_odometer"]
+
+            if distance > 0 and float(log.quantity or 0) > 0:
+                item["total_distance"] += distance
+
+        item["previous_odometer"] = current_odometer
+
+    vehicle_breakdown = []
+
+    for item in vehicle_data.values():
+        quantity = item["total_fuel_quantity"]
+
+        if quantity > 0 and item["total_distance"] > 0:
+            item["fuel_efficiency"] = round(
+                item["total_distance"] / quantity, 2
+            )
+
+        item.pop("previous_odometer", None)
+        vehicle_breakdown.append(item)
 
     return {
-        "total_fuel_quantity": result[0],
-        "total_fuel_cost": result[1],
-        "total_fuel_records": result[2]
+        "total_fuel_quantity": round(total_quantity, 2),
+        "total_fuel_cost": round(total_cost, 2),
+        "total_fuel_records": len(logs),
+        "vehicle_breakdown": vehicle_breakdown
     }
 
 
+# Vehicle-wise Fuel Analytics
 @app.get("/api/fuel/analytics/{vehicle_id}")
 def get_vehicle_fuel_analytics(
     vehicle_id: int,
+    start_date: date | None = None,
+    end_date: date | None = None,
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_role("Admin", "Manager"))
 ):
@@ -1536,19 +2400,51 @@ def get_vehicle_fuel_analytics(
             detail="Vehicle not found"
         )
 
-    result = db.query(
-        func.coalesce(func.sum(FuelLog.quantity), 0),
-        func.coalesce(func.sum(FuelLog.cost), 0),
-        func.count(FuelLog.id)
-    ).filter(
+    query = db.query(FuelLog).filter(
         FuelLog.vehicle_id == vehicle_id
-    ).first()
+    )
+
+    if start_date:
+        query = query.filter(FuelLog.fuel_date >= start_date)
+
+    if end_date:
+        query = query.filter(FuelLog.fuel_date <= end_date)
+
+    logs = query.order_by(
+        FuelLog.fuel_date,
+        FuelLog.id
+    ).all()
+
+    total_quantity = sum(float(log.quantity or 0) for log in logs)
+    total_cost = sum(float(log.cost or 0) for log in logs)
+
+    total_distance = 0
+    previous_odometer = None
+
+    for log in logs:
+        current_odometer = float(log.odometer_reading or 0)
+
+        if previous_odometer is not None:
+            distance = current_odometer - previous_odometer
+
+            if distance > 0:
+                total_distance += distance
+
+        previous_odometer = current_odometer
+
+    efficiency = None
+
+    if total_quantity > 0 and total_distance > 0:
+        efficiency = round(total_distance / total_quantity, 2)
 
     return {
         "vehicle_id": vehicle_id,
-        "total_fuel_quantity": result[0],
-        "total_fuel_cost": result[1],
-        "total_fuel_records": result[2]
+        "vehicle_number": vehicle.vehicle_number,
+        "total_fuel_quantity": round(total_quantity, 2),
+        "total_fuel_cost": round(total_cost, 2),
+        "total_fuel_records": len(logs),
+        "total_distance": round(total_distance, 2),
+        "fuel_efficiency": efficiency
     }
 
 # Add Vehicle GPS Location
@@ -1912,37 +2808,111 @@ def delivery_report(
 # Maintenance Report
 @app.get("/api/reports/maintenance")
 def maintenance_report(
+    vehicle_number: str = None,
+    category: str = None,
+    status: str = None,
+    start_date: date = None,
+    end_date: date = None,
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_role("Admin", "Manager"))
 ):
-    total_records = db.query(Maintenance).count()
+    today = date.today()
 
-    scheduled = db.query(Maintenance).filter(
-        Maintenance.status == "Scheduled"
-    ).count()
+    query = db.query(Maintenance)
 
-    in_progress = db.query(Maintenance).filter(
-        Maintenance.status == "In Progress"
-    ).count()
+    if vehicle_number:
+        query = query.join(Vehicle).filter(
+            Vehicle.vehicle_number.ilike(f"%{vehicle_number}%")
+        )
 
-    completed = db.query(Maintenance).filter(
-        Maintenance.status == "Completed"
-    ).count()
+    if category:
+        query = query.filter(
+            Maintenance.service_type == category
+        )
 
-    overdue = db.query(Maintenance).filter(
-        Maintenance.due_date < date.today(),
-        Maintenance.status != "Completed"
-    ).count()
+    if status:
+        query = query.filter(
+            Maintenance.status == status
+        )
+
+    if start_date:
+        query = query.filter(
+            Maintenance.due_date >= start_date
+        )
+
+    if end_date:
+        query = query.filter(
+            Maintenance.due_date <= end_date
+        )
+
+    records = query.all()
+
+    scheduled = sum(1 for r in records if r.status == "Scheduled")
+    in_progress = sum(1 for r in records if r.status == "In Progress")
+    completed = sum(1 for r in records if r.status == "Completed")
+    overdue = sum(
+        1 for r in records
+        if r.due_date < today
+        and r.status not in ["Completed", "Cancelled"]
+    )
+
+    history_query = db.query(MaintenanceHistory)
+
+    if vehicle_number:
+        history_query = history_query.join(
+            Vehicle,
+            MaintenanceHistory.vehicle_id == Vehicle.id
+        ).filter(
+            Vehicle.vehicle_number.ilike(f"%{vehicle_number}%")
+        )
+
+    if category:
+        history_query = history_query.join(
+            Maintenance,
+            MaintenanceHistory.maintenance_id == Maintenance.id
+        ).filter(
+            Maintenance.service_type == category
+        )
+
+    if start_date:
+        history_query = history_query.filter(
+            MaintenanceHistory.service_date >= start_date
+        )
+
+    if end_date:
+        history_query = history_query.filter(
+            MaintenanceHistory.service_date <= end_date
+        )
+
+    total_actual_expense = history_query.with_entities(
+        func.coalesce(func.sum(MaintenanceHistory.actual_expense), 0)
+    ).scalar()
+
+    vehicle_expenses = history_query.join(
+        Vehicle,
+        MaintenanceHistory.vehicle_id == Vehicle.id
+    ).with_entities(
+        Vehicle.vehicle_number,
+        func.sum(MaintenanceHistory.actual_expense)
+    ).group_by(
+        Vehicle.vehicle_number
+    ).all()
 
     return {
-        "total_maintenance_records": total_records,
+        "total_maintenance_records": len(records),
         "scheduled": scheduled,
         "in_progress": in_progress,
         "completed": completed,
-        "overdue": overdue
+        "overdue": overdue,
+        "total_actual_expense": float(total_actual_expense or 0),
+        "vehicle_wise_expenses": [
+            {
+                "vehicle_number": number,
+                "total_expense": float(expense or 0)
+            }
+            for number, expense in vehicle_expenses
+        ]
     }
-
-
 # PDF Delivery Report
 @app.get("/api/reports/delivery/pdf")
 def export_delivery_pdf(
@@ -1988,36 +2958,135 @@ def export_delivery_pdf(
 # PDF Maintenance Report
 @app.get("/api/reports/maintenance/pdf")
 def export_maintenance_pdf(
+    vehicle_number: str = None,
+    category: str = None,
+    status: str = None,
+    start_date: date = None,
+    end_date: date = None,
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_role("Admin", "Manager"))
 ):
-    total = db.query(Maintenance).count()
+    today = date.today()
 
-    scheduled = db.query(Maintenance).filter(
-        Maintenance.status == "Scheduled"
-    ).count()
+    query = db.query(Maintenance)
 
-    completed = db.query(Maintenance).filter(
-        Maintenance.status == "Completed"
-    ).count()
+    if vehicle_number:
+        query = query.join(Vehicle).filter(
+            Vehicle.vehicle_number.ilike(f"%{vehicle_number}%")
+        )
 
-    overdue = db.query(Maintenance).filter(
-        Maintenance.due_date < date.today(),
-        Maintenance.status != "Completed"
-    ).count()
+    if category:
+        query = query.filter(Maintenance.service_type == category)
+
+    if status:
+        query = query.filter(Maintenance.status == status)
+
+    if start_date:
+        query = query.filter(Maintenance.due_date >= start_date)
+
+    if end_date:
+        query = query.filter(Maintenance.due_date <= end_date)
+
+    records = query.order_by(Maintenance.due_date.asc()).all()
+
+    history_query = db.query(MaintenanceHistory).join(
+        Maintenance,
+        MaintenanceHistory.maintenance_id == Maintenance.id
+    )
+
+    if vehicle_number:
+        history_query = history_query.join(
+            Vehicle,
+            MaintenanceHistory.vehicle_id == Vehicle.id
+        ).filter(
+            Vehicle.vehicle_number.ilike(f"%{vehicle_number}%")
+        )
+
+    if category:
+        history_query = history_query.filter(
+            Maintenance.service_type == category
+        )
+
+    if status:
+        history_query = history_query.filter(
+            Maintenance.status == status
+        )
+
+    if start_date:
+        history_query = history_query.filter(
+            MaintenanceHistory.service_date >= start_date
+        )
+
+    if end_date:
+        history_query = history_query.filter(
+            MaintenanceHistory.service_date <= end_date
+        )
+
+    total_expense = history_query.with_entities(
+        func.coalesce(func.sum(MaintenanceHistory.actual_expense), 0)
+    ).scalar()
+
+    vehicle_expenses = history_query.join(
+        Vehicle,
+        MaintenanceHistory.vehicle_id == Vehicle.id
+    ).with_entities(
+        Vehicle.vehicle_number,
+        func.sum(MaintenanceHistory.actual_expense)
+    ).group_by(Vehicle.vehicle_number).all()
+
+    scheduled = sum(1 for r in records if r.status == "Scheduled")
+    in_progress = sum(1 for r in records if r.status == "In Progress")
+    completed = sum(1 for r in records if r.status == "Completed")
+    overdue = sum(
+        1 for r in records
+        if r.due_date < today
+        and r.status not in ["Completed", "Cancelled"]
+    )
 
     file_path = "maintenance_report.pdf"
     pdf = canvas.Canvas(file_path, pagesize=A4)
 
+    y = 800
+
     pdf.setFont("Helvetica-Bold", 18)
-    pdf.drawString(150, 800, "FleetFlow Maintenance Report")
+    pdf.drawString(50, y, "FleetFlow Maintenance Report")
+    y -= 40
 
-    pdf.setFont("Helvetica", 12)
-    pdf.drawString(50, 750, f"Total Records: {total}")
-    pdf.drawString(50, 720, f"Scheduled: {scheduled}")
-    pdf.drawString(50, 690, f"Completed: {completed}")
-    pdf.drawString(50, 660, f"Overdue: {overdue}")
+    pdf.setFont("Helvetica", 11)
 
+    summary = [
+        f"Total Records: {len(records)}",
+        f"Scheduled: {scheduled}",
+        f"In Progress: {in_progress}",
+        f"Completed: {completed}",
+        f"Overdue: {overdue}",
+        f"Total Actual Expenses: Rs. {float(total_expense or 0):.2f}"
+    ]
+
+    for item in summary:
+        pdf.drawString(50, y, item)
+        y -= 22
+
+    y -= 15
+    pdf.setFont("Helvetica-Bold", 13)
+    pdf.drawString(50, y, "Vehicle-wise Actual Expenses")
+    y -= 25
+
+    pdf.setFont("Helvetica", 10)
+
+    for number, expense in vehicle_expenses:
+        if y < 50:
+            pdf.showPage()
+            y = 800
+            pdf.setFont("Helvetica", 10)
+
+        pdf.drawString(
+            50, y,
+            f"{number}: Rs. {float(expense or 0):.2f}"
+        )
+        y -= 20
+
+    pdf.showPage()
     pdf.save()
 
     return FileResponse(
@@ -2025,7 +3094,6 @@ def export_maintenance_pdf(
         media_type="application/pdf",
         filename="maintenance_report.pdf"
     )
-
 
 # Excel Delivery Report
 @app.get("/api/reports/delivery/excel")
@@ -2083,39 +3151,140 @@ def export_delivery_excel(
 # Excel Maintenance Report
 @app.get("/api/reports/maintenance/excel")
 def export_maintenance_excel(
+    vehicle_number: str = None,
+    category: str = None,
+    status: str = None,
+    start_date: date = None,
+    end_date: date = None,
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_role("Admin", "Manager"))
 ):
-    total = db.query(Maintenance).count()
+    today = date.today()
 
-    scheduled = db.query(Maintenance).filter(
-        Maintenance.status == "Scheduled"
-    ).count()
+    query = db.query(Maintenance)
 
-    in_progress = db.query(Maintenance).filter(
-        Maintenance.status == "In Progress"
-    ).count()
+    if vehicle_number:
+        query = query.join(Vehicle).filter(
+            Vehicle.vehicle_number.ilike(f"%{vehicle_number}%")
+        )
 
-    completed = db.query(Maintenance).filter(
-        Maintenance.status == "Completed"
-    ).count()
+    if category:
+        query = query.filter(Maintenance.service_type == category)
 
-    overdue = db.query(Maintenance).filter(
-        Maintenance.due_date < date.today(),
-        Maintenance.status != "Completed"
-    ).count()
+    if status:
+        query = query.filter(Maintenance.status == status)
+
+    if start_date:
+        query = query.filter(Maintenance.due_date >= start_date)
+
+    if end_date:
+        query = query.filter(Maintenance.due_date <= end_date)
+
+    records = query.order_by(Maintenance.due_date.asc()).all()
+
+    history_query = db.query(MaintenanceHistory).join(
+        Maintenance,
+        MaintenanceHistory.maintenance_id == Maintenance.id
+    )
+
+    if vehicle_number:
+        history_query = history_query.join(
+            Vehicle,
+            MaintenanceHistory.vehicle_id == Vehicle.id
+        ).filter(
+            Vehicle.vehicle_number.ilike(f"%{vehicle_number}%")
+        )
+
+    if category:
+        history_query = history_query.filter(
+            Maintenance.service_type == category
+        )
+
+    if status:
+        history_query = history_query.filter(
+            Maintenance.status == status
+        )
+
+    if start_date:
+        history_query = history_query.filter(
+            MaintenanceHistory.service_date >= start_date
+        )
+
+    if end_date:
+        history_query = history_query.filter(
+            MaintenanceHistory.service_date <= end_date
+        )
+
+    total_expense = history_query.with_entities(
+        func.coalesce(func.sum(MaintenanceHistory.actual_expense), 0)
+    ).scalar()
+
+    vehicle_expenses = history_query.join(
+        Vehicle,
+        MaintenanceHistory.vehicle_id == Vehicle.id
+    ).with_entities(
+        Vehicle.vehicle_number,
+        func.sum(MaintenanceHistory.actual_expense)
+    ).group_by(Vehicle.vehicle_number).all()
+
+    scheduled = sum(1 for r in records if r.status == "Scheduled")
+    in_progress = sum(1 for r in records if r.status == "In Progress")
+    completed = sum(1 for r in records if r.status == "Completed")
+    overdue = sum(
+        1 for r in records
+        if r.due_date < today
+        and r.status not in ["Completed", "Cancelled"]
+    )
 
     workbook = Workbook()
+
     sheet = workbook.active
-    sheet.title = "Maintenance Report"
+    sheet.title = "Maintenance Summary"
 
     sheet.append(["FleetFlow Maintenance Report"])
     sheet.append(["Metric", "Value"])
-    sheet.append(["Total Records", total])
+    sheet.append(["Total Records", len(records)])
     sheet.append(["Scheduled", scheduled])
     sheet.append(["In Progress", in_progress])
     sheet.append(["Completed", completed])
     sheet.append(["Overdue", overdue])
+    sheet.append(["Total Actual Expenses", float(total_expense or 0)])
+
+    detail_sheet = workbook.create_sheet("Maintenance Details")
+
+    detail_sheet.append([
+        "Vehicle Number",
+        "Category",
+        "Description",
+        "Service Date",
+        "Due Date",
+        "Status",
+        "Estimated Cost"
+    ])
+
+    for record in records:
+        detail_sheet.append([
+            record.vehicle.vehicle_number,
+            record.service_type,
+            record.description,
+            record.service_date,
+            record.due_date,
+            record.status,
+            record.estimated_cost or 0
+        ])
+
+    expense_sheet = workbook.create_sheet("Vehicle Expenses")
+
+    expense_sheet.append([
+        "Vehicle Number",
+        "Total Actual Expense"
+    ])
+
+    for number, expense in vehicle_expenses:
+        expense_sheet.append([
+            number,
+            float(expense or 0)
+        ])
 
     file_path = "maintenance_report.xlsx"
     workbook.save(file_path)
@@ -2125,3 +3294,594 @@ def export_maintenance_excel(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         filename="maintenance_report.xlsx"
     )
+# ==========================================
+# MAINTENANCE SERVICE HISTORY APIs
+# ==========================================
+
+class MaintenanceHistoryCreate(BaseModel):
+    maintenance_id: int
+    service_date: date
+    repair_description: str
+    replacement_parts: str | None = None
+    actual_expense: float
+
+
+@app.post("/api/maintenance/history")
+def create_maintenance_history(
+    history_data: MaintenanceHistoryCreate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_role("Admin", "Manager"))
+):
+    maintenance = db.query(models.Maintenance).filter(
+        models.Maintenance.id == history_data.maintenance_id
+    ).first()
+
+    if not maintenance:
+        raise HTTPException(
+            status_code=404,
+            detail="Maintenance record not found"
+        )
+
+    if maintenance.status != "Completed":
+        raise HTTPException(
+            status_code=400,
+            detail="Complete the maintenance before adding service history"
+        )
+
+    if not maintenance.operational_confirmed:
+        raise HTTPException(
+            status_code=400,
+            detail="Confirm the vehicle is operational first"
+        )
+
+    if history_data.actual_expense < 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Actual expense cannot be negative"
+        )
+
+    existing = db.query(models.MaintenanceHistory).filter(
+        models.MaintenanceHistory.maintenance_id ==
+        history_data.maintenance_id
+    ).first()
+
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail="Service history already exists for this maintenance"
+        )
+
+    history = models.MaintenanceHistory(
+        maintenance_id=maintenance.id,
+        vehicle_id=maintenance.vehicle_id,
+        service_date=history_data.service_date,
+        repair_description=history_data.repair_description,
+        replacement_parts=history_data.replacement_parts,
+        actual_expense=history_data.actual_expense
+    )
+
+    try:
+        db.add(history)
+        db.commit()
+        db.refresh(history)
+
+        return {
+            "message": "Maintenance service history saved successfully",
+            "id": history.id,
+            "maintenance_id": history.maintenance_id,
+            "vehicle_id": history.vehicle_id,
+            "service_date": history.service_date,
+            "repair_description": history.repair_description,
+            "replacement_parts": history.replacement_parts,
+            "actual_expense": history.actual_expense
+        }
+
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to save maintenance history"
+        ) from exc
+
+
+@app.get("/api/maintenance/history")
+def get_all_maintenance_history(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(
+        require_role("Admin", "Manager", "Dispatcher")
+    )
+):
+    records = db.query(models.MaintenanceHistory).order_by(
+        models.MaintenanceHistory.service_date.desc()
+    ).all()
+
+    return [
+        {
+            "id": record.id,
+            "maintenance_id": record.maintenance_id,
+            "vehicle_id": record.vehicle_id,
+            "vehicle_number": record.vehicle.vehicle_number,
+            "service_date": record.service_date,
+            "repair_description": record.repair_description,
+            "replacement_parts": record.replacement_parts,
+            "actual_expense": record.actual_expense
+        }
+        for record in records
+    ]
+
+
+@app.get("/api/vehicles/{vehicle_id}/maintenance-history")
+def get_vehicle_maintenance_history(
+    vehicle_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(
+        require_role("Admin", "Manager", "Dispatcher")
+    )
+):
+    vehicle = db.query(models.Vehicle).filter(
+        models.Vehicle.id == vehicle_id
+    ).first()
+
+    if not vehicle:
+        raise HTTPException(
+            status_code=404,
+            detail="Vehicle not found"
+        )
+
+    records = db.query(models.MaintenanceHistory).filter(
+        models.MaintenanceHistory.vehicle_id == vehicle_id
+    ).order_by(
+        models.MaintenanceHistory.service_date.desc()
+    ).all()
+
+    return [
+        {
+            "id": record.id,
+            "maintenance_id": record.maintenance_id,
+            "vehicle_id": record.vehicle_id,
+            "vehicle_number": vehicle.vehicle_number,
+            "service_date": record.service_date,
+            "repair_description": record.repair_description,
+            "replacement_parts": record.replacement_parts,
+            "actual_expense": record.actual_expense
+        }
+        for record in records
+    ]
+
+
+# ============================================================
+# MILESTONE 3 - OPERATIONAL ANALYTICS & FLEET PERFORMANCE
+# ============================================================
+
+@app.get("/api/analytics/fleet-performance")
+def get_fleet_performance(
+    start_date: date = None,
+    end_date: date = None,
+    vehicle_id: int = None,
+    driver_id: int = None,
+    trip_status: str = None,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(
+        require_role("Admin", "Manager")
+    )
+):
+    today = date.today()
+
+    # ---------------- VEHICLES ----------------
+    vehicles = db.query(models.Vehicle).all()
+
+    total_vehicles = len(vehicles)
+    available_vehicles = sum(
+        1 for v in vehicles
+        if (v.status or "").lower() == "available"
+    )
+    maintenance_vehicles = sum(
+        1 for v in vehicles
+        if "maintenance" in (v.status or "").lower()
+    )
+    active_vehicles = sum(
+        1 for v in vehicles
+        if (v.status or "").lower() in ["in use", "active", "on trip"]
+    )
+
+    # ---------------- DRIVERS ----------------
+    drivers = db.query(models.Driver).all()
+
+    total_drivers = len(drivers)
+    available_drivers = sum(
+        1 for d in drivers
+        if (d.status or "").lower() == "available"
+    )
+    on_trip_drivers = sum(
+        1 for d in drivers
+        if (d.status or "").lower() in ["on trip", "in trip"]
+    )
+    off_duty_drivers = sum(
+        1 for d in drivers
+        if (d.status or "").lower() in ["off duty", "inactive"]
+    )
+
+    # ---------------- TRIPS ----------------
+    trip_query = db.query(models.Trip)
+
+    if start_date:
+        trip_query = trip_query.filter(
+            models.Trip.scheduled_start >= datetime.combine(
+                start_date, datetime.min.time()
+            )
+        )
+
+    if end_date:
+        trip_query = trip_query.filter(
+            models.Trip.scheduled_start <= datetime.combine(
+                end_date, datetime.max.time()
+            )
+        )
+
+    if vehicle_id:
+        trip_query = trip_query.filter(
+            models.Trip.vehicle_id == vehicle_id
+        )
+
+    if driver_id:
+        trip_query = trip_query.filter(
+            models.Trip.driver_id == driver_id
+        )
+
+    if trip_status:
+        trip_query = trip_query.filter(
+            models.Trip.status.ilike(trip_status)
+        )
+
+    trips = trip_query.all()
+
+    total_trips = len(trips)
+
+    trip_status_counts = {}
+    completed_trips = 0
+    ongoing_trips = 0
+    delayed_trips = 0
+    cancelled_trips = 0
+
+    vehicle_trip_counts = {}
+    driver_performance = {}
+    route_performance = {}
+
+    for trip in trips:
+        status = (trip.status or "Unknown").strip()
+        normalized_status = status.lower()
+
+        trip_status_counts[status] = (
+            trip_status_counts.get(status, 0) + 1
+        )
+
+        if normalized_status == "completed":
+            completed_trips += 1
+
+        if normalized_status in ["active", "in progress", "started"]:
+            ongoing_trips += 1
+
+        if normalized_status == "cancelled":
+            cancelled_trips += 1
+
+        is_delayed = (
+            normalized_status == "delayed"
+            or (
+                trip.actual_end is not None
+                and trip.scheduled_end is not None
+                and trip.actual_end > trip.scheduled_end
+            )
+        )
+
+        if is_delayed:
+            delayed_trips += 1
+
+        vehicle_trip_counts[trip.vehicle_id] = (
+            vehicle_trip_counts.get(trip.vehicle_id, 0) + 1
+        )
+
+        if trip.driver_id not in driver_performance:
+            driver_performance[trip.driver_id] = {
+                "driver_id": trip.driver_id,
+                "completed_trips": 0,
+                "delayed_trips": 0,
+                "total_trips": 0
+            }
+
+        driver_performance[trip.driver_id]["total_trips"] += 1
+
+        if normalized_status == "completed":
+            driver_performance[trip.driver_id]["completed_trips"] += 1
+
+        if is_delayed:
+            driver_performance[trip.driver_id]["delayed_trips"] += 1
+
+        route = f"{trip.origin} - {trip.destination}"
+
+        if route not in route_performance:
+            route_performance[route] = {
+                "route": route,
+                "total_trips": 0,
+                "delayed_trips": 0
+            }
+
+        route_performance[route]["total_trips"] += 1
+
+        if is_delayed:
+            route_performance[route]["delayed_trips"] += 1
+
+    # ---------------- SHIPMENTS ----------------
+    shipment_query = db.query(models.Shipment)
+
+    if start_date:
+        shipment_query = shipment_query.filter(
+            models.Shipment.shipment_date >= start_date
+        )
+
+    if end_date:
+        shipment_query = shipment_query.filter(
+            models.Shipment.shipment_date <= end_date
+        )
+
+    shipments = shipment_query.all()
+
+    total_shipments = len(shipments)
+
+    delivered_shipments = sum(
+        1 for s in shipments
+        if (s.status or "").lower() == "delivered"
+    )
+
+    pending_shipments = sum(
+        1 for s in shipments
+        if (s.status or "").lower() == "pending"
+    )
+
+    delayed_shipments = sum(
+        1 for s in shipments
+        if (
+            s.expected_delivery < today
+            and (s.status or "").lower() != "delivered"
+        )
+    )
+
+    on_time_deliveries = sum(
+        1 for s in shipments
+        if (
+            (s.status or "").lower() == "delivered"
+            and s.actual_delivery is not None
+            and s.actual_delivery <= s.expected_delivery
+        )
+    )
+
+    delivery_rate = round(
+        delivered_shipments / total_shipments * 100, 2
+    ) if total_shipments else 0
+
+    on_time_rate = round(
+        on_time_deliveries / delivered_shipments * 100, 2
+    ) if delivered_shipments else 0
+
+    # ---------------- MAINTENANCE ----------------
+    maintenance_query = db.query(models.Maintenance)
+
+    if start_date:
+        maintenance_query = maintenance_query.filter(
+            models.Maintenance.service_date >= start_date
+        )
+
+    if end_date:
+        maintenance_query = maintenance_query.filter(
+            models.Maintenance.service_date <= end_date
+        )
+
+    if vehicle_id:
+        maintenance_query = maintenance_query.filter(
+            models.Maintenance.vehicle_id == vehicle_id
+        )
+
+    maintenance_records = maintenance_query.all()
+
+    maintenance_count = len(maintenance_records)
+
+    maintenance_cost = sum(
+        m.estimated_cost or 0
+        for m in maintenance_records
+    )
+
+    maintenance_status_counts = {}
+
+    for record in maintenance_records:
+        status = record.status or "Unknown"
+        maintenance_status_counts[status] = (
+            maintenance_status_counts.get(status, 0) + 1
+        )
+
+    # ---------------- MAINTENANCE HISTORY ----------------
+    history_query = db.query(models.MaintenanceHistory)
+
+    if start_date:
+        history_query = history_query.filter(
+            models.MaintenanceHistory.service_date >= start_date
+        )
+
+    if end_date:
+        history_query = history_query.filter(
+            models.MaintenanceHistory.service_date <= end_date
+        )
+
+    if vehicle_id:
+        history_query = history_query.filter(
+            models.MaintenanceHistory.vehicle_id == vehicle_id
+        )
+
+    maintenance_history = history_query.all()
+
+    actual_maintenance_expense = sum(
+        h.actual_expense or 0
+        for h in maintenance_history
+    )
+
+    # ---------------- FUEL ANALYTICS ----------------
+    fuel_query = db.query(models.FuelLog)
+
+    if start_date:
+        fuel_query = fuel_query.filter(
+            models.FuelLog.fuel_date >= start_date
+        )
+
+    if end_date:
+        fuel_query = fuel_query.filter(
+            models.FuelLog.fuel_date <= end_date
+        )
+
+    if vehicle_id:
+        fuel_query = fuel_query.filter(
+            models.FuelLog.vehicle_id == vehicle_id
+        )
+
+    fuel_records = fuel_query.all()
+
+    total_fuel_quantity = sum(
+        f.quantity or 0 for f in fuel_records
+    )
+
+    total_fuel_cost = sum(
+        f.cost or 0 for f in fuel_records
+    )
+
+    # ---------------- VEHICLE PERFORMANCE ----------------
+    vehicle_performance = []
+
+    for vehicle in vehicles:
+        if vehicle_id and vehicle.id != vehicle_id:
+            continue
+
+        vehicle_performance.append({
+            "vehicle_id": vehicle.id,
+            "vehicle_number": vehicle.vehicle_number,
+            "status": vehicle.status,
+            "total_trips": vehicle_trip_counts.get(vehicle.id, 0)
+        })
+
+    # ---------------- DRIVER PERFORMANCE ----------------
+    driver_results = []
+
+    for driver in drivers:
+        if driver_id and driver.id != driver_id:
+            continue
+
+        performance = driver_performance.get(driver.id, {
+            "completed_trips": 0,
+            "delayed_trips": 0,
+            "total_trips": 0
+        })
+
+        driver_results.append({
+            "driver_id": driver.id,
+            "driver_name": driver.name,
+            "status": driver.status,
+            "total_trips": performance["total_trips"],
+            "completed_trips": performance["completed_trips"],
+            "delayed_trips": performance["delayed_trips"]
+        })
+
+    # ---------------- OPERATIONAL INSIGHTS ----------------
+    insights = []
+
+    frequent_maintenance = {}
+
+    for record in maintenance_records:
+        frequent_maintenance[record.vehicle_id] = (
+            frequent_maintenance.get(record.vehicle_id, 0) + 1
+        )
+
+    for v_id, count in frequent_maintenance.items():
+        if count >= 2:
+            vehicle = next(
+                (v for v in vehicles if v.id == v_id), None
+            )
+
+            if vehicle:
+                insights.append({
+                    "type": "Maintenance",
+                    "message": (
+                        f"Vehicle {vehicle.vehicle_number} "
+                        f"has {count} maintenance records."
+                    )
+                })
+
+    for driver_data in driver_results:
+        if driver_data["delayed_trips"] >= 2:
+            insights.append({
+                "type": "Driver Performance",
+                "message": (
+                    f"{driver_data['driver_name']} has "
+                    f"{driver_data['delayed_trips']} delayed trips."
+                )
+            })
+
+    for route_data in route_performance.values():
+        if route_data["delayed_trips"] >= 2:
+            insights.append({
+                "type": "Route Performance",
+                "message": (
+                    f"Route {route_data['route']} has "
+                    f"{route_data['delayed_trips']} delayed trips."
+                )
+            })
+
+    return {
+        "fleet_summary": {
+            "total_vehicles": total_vehicles,
+            "active_vehicles": active_vehicles,
+            "available_vehicles": available_vehicles,
+            "maintenance_vehicles": maintenance_vehicles,
+            "vehicle_utilization_percentage": round(
+                len(vehicle_trip_counts) / total_vehicles * 100, 2
+            ) if total_vehicles else 0
+        },
+
+        "driver_summary": {
+            "total_drivers": total_drivers,
+            "available_drivers": available_drivers,
+            "on_trip_drivers": on_trip_drivers,
+            "off_duty_drivers": off_duty_drivers
+        },
+
+        "trip_analytics": {
+            "total_trips": total_trips,
+            "completed_trips": completed_trips,
+            "ongoing_trips": ongoing_trips,
+            "delayed_trips": delayed_trips,
+            "cancelled_trips": cancelled_trips,
+            "status_breakdown": trip_status_counts
+        },
+
+        "delivery_analytics": {
+            "total_shipments": total_shipments,
+            "delivered": delivered_shipments,
+            "pending": pending_shipments,
+            "delayed": delayed_shipments,
+            "delivery_rate_percentage": delivery_rate,
+            "on_time_delivery_percentage": on_time_rate
+        },
+
+        "maintenance_analytics": {
+            "total_records": maintenance_count,
+            "estimated_cost": maintenance_cost,
+            "actual_expense": actual_maintenance_expense,
+            "status_breakdown": maintenance_status_counts
+        },
+
+        "fuel_analytics": {
+            "total_records": len(fuel_records),
+            "total_quantity": total_fuel_quantity,
+            "total_cost": total_fuel_cost
+        },
+
+        "vehicle_performance": vehicle_performance,
+        "driver_performance": driver_results,
+        "route_performance": list(route_performance.values()),
+        "operational_insights": insights
+    }

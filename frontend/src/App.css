@@ -1136,3 +1136,891 @@ button {
     display: none;
   }
 }
+
+
+/* Fleet Performance - Professional Table Design */
+.performance-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.performance-table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: left;
+}
+
+.performance-table th {
+  background: #17365d;
+  color: #ffffff;
+  padding: 15px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+  border-bottom: 1px solid #17365d;
+}
+
+.performance-table th:last-child {
+  border-right: none;
+}
+
+.performance-table td {
+  padding: 14px 16px;
+  color: #334155;
+  font-size: 13px;
+  background: #ffffff;
+  border-right: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.performance-table td:last-child {
+  border-right: none;
+}
+
+.performance-table tbody tr:nth-child(even) td {
+  background: #f5f8fc;
+}
+
+.performance-table tbody tr:hover td {
+  background: #eaf1fa;
+}
+
+.performance-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.performance-table td[colspan] {
+  text-align: center;
+  padding: 22px;
+  color: #64748b;
+}
+
+
+/* Driver & Vehicle Assignment Form */
+
+.assignment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 12px 4px 4px;
+}
+
+.assignment-trip-field,
+.assignment-fields-row > div {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.assignment-trip-field select,
+.assignment-fields-row select {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px solid #d7dfeb;
+  border-radius: 9px;
+  background: #fff;
+  color: #24334d;
+  font-size: 14px;
+  outline: none;
+}
+
+.assignment-fields-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+}
+
+.assignment-form label {
+  color: #263750;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.assignment-submit-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+
+.assignment-submit-button {
+  min-width: 155px;
+  min-height: 46px;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  background: #173b70;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.assignment-submit-button:hover:not(:disabled) {
+  background: #0f2c56;
+}
+
+.assignment-submit-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 650px) {
+  .assignment-fields-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Fuel Consumption Analysis Tables */
+
+.fuel-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #dce4ef;
+  border-radius: 10px;
+}
+
+.fuel-analysis-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 580px;
+  background: #ffffff;
+}
+
+.fuel-analysis-table thead {
+  background: #173b70;
+}
+
+.fuel-analysis-table th {
+  padding: 15px 18px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+  border: 1px solid #294d7e;
+}
+
+.fuel-analysis-table td {
+  padding: 15px 18px;
+  color: #34445c;
+  font-size: 14px;
+  border: 1px solid #e2e8f0;
+}
+
+.fuel-analysis-table tbody tr:nth-child(even) {
+  background: #f5f8fc;
+}
+
+.fuel-analysis-table tbody tr:hover {
+  background: #edf3fb;
+}
+
+.fuel-analysis-table .fuel-vehicle-name {
+  color: #173b70;
+  font-weight: 600;
+}
+
+.fuel-analysis-table .fuel-cost {
+  color: #173b70;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.fuel-analysis-table .fuel-empty {
+  padding: 24px;
+  color: #64748b;
+  text-align: center;
+}
+
+/* Monthly Fuel Consumption Chart */
+
+.fuel-chart-container {
+  width: 100%;
+  padding: 20px;
+  border: 1px solid #e0e7f0;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.fuel-chart-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+  margin-bottom: 25px;
+}
+
+.fuel-chart-heading h4 {
+  margin: 0;
+  color: #173b70;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.fuel-chart-heading p {
+  margin: 5px 0 0;
+  color: #718096;
+  font-size: 13px;
+}
+
+.fuel-chart-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.fuel-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #2563a6;
+}
+
+.fuel-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  min-height: 250px;
+  padding: 15px 8px 0;
+  overflow-x: auto;
+  border-bottom: 1px solid #dce4ef;
+}
+
+.fuel-chart-column {
+  flex: 1;
+  min-width: 75px;
+  max-width: 130px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.fuel-chart-value {
+  color: #334155;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.fuel-chart-bar-area {
+  width: 100%;
+  height: 175px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  border-bottom: 1px solid #dce4ef;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 42px,
+    #edf1f6 43px
+  );
+}
+
+.fuel-chart-bar {
+  width: 48px;
+  max-width: 75%;
+  background: #2563a6;
+  border-radius: 7px 7px 0 0;
+  transition: height 0.3s ease, background 0.2s ease;
+}
+
+.fuel-chart-bar:hover {
+  background: #173b70;
+}
+
+.fuel-chart-month {
+  padding: 5px 0 12px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.fuel-chart-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid #e5eaf1;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.fuel-chart-footer strong {
+  color: #173b70;
+  font-size: 14px;
+}
+
+@media (max-width: 650px) {
+  .fuel-chart-container {
+    padding: 14px;
+  }
+
+  .fuel-chart {
+    gap: 12px;
+  }
+
+  .fuel-chart-column {
+    min-width: 70px;
+  }
+
+  .fuel-chart-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+/* ==================================
+   TRAFFIC-AWARE ROUTE PLANNING
+================================== */
+
+.traffic-planning-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.traffic-page-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.traffic-page-heading h2 {
+  margin: 0;
+  color: #173b70;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.traffic-page-heading p {
+  margin: 7px 0 0;
+  color: #718096;
+  font-size: 14px;
+}
+
+.traffic-live-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border: 1px solid #dce5f0;
+  border-radius: 20px;
+  background: #f5f8fc;
+  color: #173b70;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.traffic-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2563a6;
+}
+
+/* Route Form */
+
+.traffic-planning-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 8px 2px;
+}
+
+.traffic-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+}
+
+.traffic-field {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 0;
+}
+
+.traffic-field label {
+  color: #263750;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.traffic-field input,
+.traffic-field select {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px solid #d7dfeb;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #263750;
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.traffic-field input:focus,
+.traffic-field select:focus {
+  border-color: #2563a6;
+  box-shadow: 0 0 0 3px rgba(37, 99, 166, 0.10);
+}
+
+.traffic-level-field {
+  grid-column: 1 / -1;
+}
+
+.traffic-form-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+  padding-top: 18px;
+  border-top: 1px solid #e5eaf1;
+}
+
+.traffic-form-footer p {
+  margin: 0;
+  color: #718096;
+  font-size: 13px;
+}
+
+.traffic-calculate-button {
+  min-height: 46px;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  background: #173b70;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.traffic-calculate-button:hover:not(:disabled) {
+  background: #0f2c56;
+}
+
+.traffic-calculate-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Error */
+
+.traffic-error-message {
+  padding: 14px 16px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fff5f5;
+  color: #b42318;
+  font-size: 14px;
+}
+
+/* Results */
+
+.traffic-results-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.traffic-results-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.traffic-results-heading h3 {
+  margin: 0;
+  color: #173b70;
+  font-size: 19px;
+}
+
+.traffic-results-heading p {
+  margin: 6px 0 0;
+  color: #718096;
+  font-size: 13px;
+}
+
+.traffic-result-badge {
+  padding: 8px 13px;
+  border-radius: 20px;
+  background: #edf3fb;
+  color: #173b70;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Route Summary */
+
+.traffic-route-summary {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  padding: 22px;
+  border: 1px solid #dce5f0;
+  border-radius: 12px;
+  background: #f7f9fc;
+}
+
+.traffic-location-card {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 0;
+}
+
+.traffic-location-card span {
+  color: #718096;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+}
+
+.traffic-location-card strong {
+  color: #173b70;
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+
+.traffic-location-arrow {
+  color: #2563a6;
+  font-size: 25px;
+  font-weight: 700;
+}
+
+/* Metric Cards */
+
+.traffic-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 15px;
+}
+
+.traffic-metric-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+  min-height: 105px;
+  padding: 18px;
+  border: 1px solid #e0e7f0;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.traffic-metric-card span {
+  color: #718096;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.traffic-metric-card strong {
+  color: #173b70;
+  font-size: 21px;
+  font-weight: 700;
+}
+
+.traffic-highlight-card {
+  border-color: #cbd9eb;
+  background: #f2f6fc;
+}
+
+/* Traffic Status */
+
+.traffic-status-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 18px 20px;
+  border: 1px solid #dce5f0;
+  border-radius: 10px;
+  background: #f7f9fc;
+}
+
+.traffic-status-card div {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.traffic-status-card span {
+  color: #718096;
+  font-size: 12px;
+}
+
+.traffic-status-card strong {
+  color: #173b70;
+  font-size: 15px;
+}
+
+.traffic-status-card p {
+  margin: 0;
+  color: #475569;
+  font-size: 13px;
+}
+
+/* Map */
+
+.traffic-map-section {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.traffic-map-heading h3 {
+  margin: 0;
+  color: #173b70;
+  font-size: 18px;
+}
+
+.traffic-map-heading p {
+  margin: 6px 0 0;
+  color: #718096;
+  font-size: 13px;
+}
+
+.traffic-map-container {
+  overflow: hidden;
+  border: 1px solid #dce5f0;
+  border-radius: 12px;
+}
+
+/* Responsive */
+
+@media (max-width: 900px) {
+  .traffic-metrics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .traffic-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .traffic-level-field {
+    grid-column: auto;
+  }
+
+  .traffic-form-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .traffic-calculate-button {
+    width: 100%;
+  }
+
+  .traffic-route-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .traffic-location-arrow {
+    transform: rotate(90deg);
+    justify-self: center;
+  }
+
+  .traffic-metrics-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .traffic-metric-card {
+    padding: 13px;
+  }
+
+  .traffic-metric-card strong {
+    font-size: 17px;
+  }
+}
+
+
+/* ===== FleetFlow Notification Bell ===== */
+
+.notification-menu-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.notification-bell-button {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #dbe4f0;
+  border-radius: 10px;
+  background: #f1f5fb;
+  color: #173b70;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.notification-bell-button:hover {
+  background: #e2ebf8;
+  border-color: #173b70;
+}
+
+.notification-count-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #ffffff;
+  border-radius: 20px;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.notification-dropdown {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  width: 350px;
+  max-width: calc(100vw - 30px);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 12px 35px rgba(15, 35, 65, 0.16);
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.notification-dropdown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid #e8edf4;
+}
+
+.notification-dropdown-header strong {
+  color: #17365d;
+  font-size: 15px;
+}
+
+.notification-dropdown-header span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.notification-dropdown-list {
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.notification-dropdown-item {
+  padding: 14px 16px;
+  border-bottom: 1px solid #edf1f6;
+}
+
+.notification-dropdown-item.unread {
+  background: #f4f8ff;
+  border-left: 3px solid #2563a6;
+}
+
+.notification-item-content strong {
+  display: block;
+  color: #1e293b;
+  font-size: 13px;
+  margin-bottom: 5px;
+}
+
+.notification-item-content p {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.notification-mark-read {
+  margin-top: 9px;
+  padding: 5px 10px;
+  border: 1px solid #cbd9eb;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #173b70;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.notification-mark-read:hover {
+  background: #eaf1fb;
+}
+
+.notification-empty {
+  padding: 22px 16px;
+  color: #64748b;
+  font-size: 13px;
+  text-align: center;
+}
+
+.notification-view-all {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-top: 1px solid #e8edf4;
+  background: #ffffff;
+  color: #173b70;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.notification-view-all:hover {
+  background: #f1f5fb;
+}
+
+@media (max-width: 480px) {
+  .notification-dropdown {
+    position: fixed;
+    top: 75px;
+    right: 12px;
+    width: calc(100vw - 24px);
+  }
+}
+
+

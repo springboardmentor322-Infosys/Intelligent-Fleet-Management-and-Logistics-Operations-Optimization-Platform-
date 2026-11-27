@@ -14,7 +14,7 @@ if not SECRET_KEY:
     raise RuntimeError("JWT_SECRET_KEY is missing in the .env file.")
 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 480
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 

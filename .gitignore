@@ -1,3 +1,24 @@
 backend/.env
 **/__pycache__/
 *.py[cod]
+
+# Python virtual environment
+backend/venv/
+
+# Environment files
+.env
+.env.*
+!*.env.example
+
+# Celery generated schedule files
+backend/celerybeat-schedule*
+
+# Generated reports
+backend/delivery_report.pdf
+backend/delivery_report.xlsx
+backend/maintenance_report.pdf
+backend/maintenance_report.xlsx
+
+# Python cache
+__pycache__/
+*.py[cod]

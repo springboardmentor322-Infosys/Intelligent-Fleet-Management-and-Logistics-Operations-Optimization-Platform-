@@ -99,6 +99,13 @@ class Maintenance(Base):
     service_date = Column(Date, nullable=False)
     due_date = Column(Date, nullable=False)
     status = Column(String, default="Scheduled")
+    service_centre = Column(String(150), nullable=True)
+    estimated_cost = Column(Float, nullable=True)
+    operational_confirmed = Column(
+        Boolean,
+        default=False,
+        nullable=False
+    )
 
     vehicle = relationship("Vehicle")
 
@@ -188,4 +195,80 @@ class Notification(Base):
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    vehicle = relationship("Vehicle")
+
+
+
+class AssignmentHistory(Base):
+    __tablename__ = "assignment_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    trip_id = Column(
+        Integer,
+        ForeignKey("trips.id"),
+        nullable=False
+    )
+
+    driver_id = Column(
+        Integer,
+        ForeignKey("drivers.id"),
+        nullable=False
+    )
+
+    vehicle_id = Column(
+        Integer,
+        ForeignKey("vehicles.id"),
+        nullable=False
+    )
+
+    assignment_date = Column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False
+    )
+
+    assignment_status = Column(
+        String(30),
+        default="Assigned",
+        nullable=False
+    )
+
+    trip = relationship("Trip")
+    driver = relationship("Driver")
+    vehicle = relationship("Vehicle")
+
+
+class MaintenanceHistory(Base):
+    __tablename__ = "maintenance_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    maintenance_id = Column(
+        Integer,
+        ForeignKey("maintenance.id"),
+        nullable=False
+    )
+
+    vehicle_id = Column(
+        Integer,
+        ForeignKey("vehicles.id"),
+        nullable=False
+    )
+
+    service_date = Column(Date, nullable=False)
+
+    repair_description = Column(String, nullable=False)
+
+    replacement_parts = Column(String, nullable=True)
+
+    actual_expense = Column(Float, nullable=False)
+
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False
+    )
+
+    maintenance = relationship("Maintenance")
     vehicle = relationship("Vehicle")
